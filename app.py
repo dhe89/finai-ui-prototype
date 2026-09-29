@@ -1,8 +1,7 @@
 import streamlit as st
-import streamlit.components.v1 as components
+import streamlit.components.v2 as components
 import requests
 import html
-import urllib.parse
 
 st.set_page_config(
     page_title="FinAI — Financial Intelligence",
@@ -124,35 +123,17 @@ if "llm_test_result" not in st.session_state:
 if "last_finai_query" not in st.session_state:
     st.session_state.last_finai_query = None
 
-# Messages are now rendered INSIDE the AI overlay.
-# A small query-string bridge lets the iframe ask Python to call OpenRouter
-# without exposing the API key to browser JavaScript.
-finai_query = st.query_params.get("finai_q")
-if finai_query and finai_query != st.session_state.last_finai_query:
-    st.session_state.last_finai_query = finai_query
-    st.session_state.messages.append({"role": "user", "content": finai_query})
-    llm_messages = [
-        {"role":"system","content":SYSTEM_PROMPT},
-        {"role":"system","content":"Dashboard financial context:\n" + FINANCIAL_CONTEXT},
-    ]
-    llm_messages.extend(st.session_state.messages[-8:])
-    answer = call_openrouter(llm_messages)
-    st.session_state.messages.append({"role":"assistant", "content":answer})
-
 
 # ============================================================
-# FINAL UI
+# AI COMPONENT
 # ============================================================
 
-HTML = r'''
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<style>
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;width:100%;background:#f4f7f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18211f}
+if "ai_open" not in st.session_state:
+    st.session_state.ai_open = False
+
+COMPONENT_CSS = r"""
+.finai-root,.finai-root *{box-sizing:border-box}
+.finai-root{margin:0;padding:0;width:100%;background:#f4f7f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18211f}
 button{font:inherit;cursor:pointer}
 :root{--green:#005642;--green2:#08735d;--lime:#b7f51d;--bg:#f4f7f5;--line:#e7ece9;--muted:#8d9793}
 .app{min-height:100vh;display:grid;grid-template-columns:250px minmax(0,1fr);background:var(--bg);overflow:hidden}
@@ -191,7 +172,7 @@ button{font:inherit;cursor:pointer}
 .ai-head{padding:24px 20px 17px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9ba49f}.ai-foot{padding:12px 18px 18px;border-top:1px solid #edf0ef}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}.ai-input:focus{border-color:#9bb8ae}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410d;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
 .mobile-head{display:none}
 @media(max-width:800px){
- body{background:#f4f7f5}.app,.app.left-collapsed{display:block;min-height:100vh;overflow:visible}
+ .finai-root{background:#f4f7f5}.app,.app.left-collapsed{display:block;min-height:100vh;overflow:visible}
  .left{position:fixed;z-index:300;inset:0 auto 0 0;width:min(78vw,320px);height:100dvh;transform:translateX(-105%);transition:transform .25s ease;box-shadow:12px 0 40px #0003;padding:18px 16px}
  .left.mobile-open{transform:translateX(0)}.app.left-collapsed .left{padding:18px 16px}.app.left-collapsed .brand-text,.app.left-collapsed .nav-text,.app.left-collapsed .config-text,.app.left-collapsed .config-pill,.app.left-collapsed .status{display:inline}.app.left-collapsed .sidebar-head{justify-content:space-between;margin-left:2px;margin-right:2px}.app.left-collapsed .brand{justify-content:flex-start}.app.left-collapsed .sidebar-toggle{position:static;width:34px;height:34px;border-radius:10px;font-size:19px;background:#ffffff12}.app.left-collapsed .nav-item{justify-content:flex-start;padding:0 12px}
  .main{padding:96px 18px 38px;overflow:visible}.desktop-header{display:none}.topbar{margin-bottom:20px}.title{font-size:29px}.metrics{gap:12px}.metric{padding:17px}.metric-value{font-size:20px}.bottom{grid-template-columns:1fr}
@@ -199,9 +180,9 @@ button{font:inherit;cursor:pointer}
  .ai{z-index:500;inset:0;width:100vw;height:100dvh;border:0;box-shadow:none}.mobile-overlay{display:none;position:fixed;inset:0;z-index:280;background:#00302655}.mobile-overlay.show{display:block}
 }
 @media(min-width:801px){.mobile-head,.mobile-overlay{display:none}}
-</style>
-</head>
-<body>
+"""
+
+COMPONENT_HTML = r"""<div class="finai-root">
 <div id="app" class="app">
   <aside id="left" class="left">
     <div class="sidebar-head"><div class="brand"><span class="brand-mark">✦</span><span class="brand-text">FinAI</span></div><button id="leftToggle" class="sidebar-toggle" aria-label="Toggle navigation">☰</button></div>
@@ -242,19 +223,24 @@ button{font:inherit;cursor:pointer}
 <div class="mobile-head"><button id="mobileMenu" class="mobile-menu" aria-label="Open navigation">☰</button><div class="mobile-brand"><span class="brand-mark">✦</span>FinAI</div><button id="mobileAI" class="mobile-ai" aria-label="Open AI Assistant">✦</button></div>
 <div id="mobileOverlay" class="mobile-overlay"></div>
 
-<script>
-const app=document.getElementById('app');
-const left=document.getElementById('left');
-const ai=document.getElementById('ai');
-const leftToggle=document.getElementById('leftToggle');
-const aiClose=document.getElementById('aiClose');
-const desktopAI=document.getElementById('desktopAI');
-const mobileAI=document.getElementById('mobileAI');
-const mobileMenu=document.getElementById('mobileMenu');
-const overlay=document.getElementById('mobileOverlay');
-const aiBody=document.getElementById('aiBody');
-const aiInput=document.getElementById('aiInput');
-const aiSend=document.getElementById('aiSend');
+
+</div>"""
+
+COMPONENT_JS = r"""export default function(component) {
+  const {parentElement,setTriggerValue}=component;
+
+const app=parentElement.querySelector('#app');
+const left=parentElement.querySelector('#left');
+const ai=parentElement.querySelector('#ai');
+const leftToggle=parentElement.querySelector('#leftToggle');
+const aiClose=parentElement.querySelector('#aiClose');
+const desktopAI=parentElement.querySelector('#desktopAI');
+const mobileAI=parentElement.querySelector('#mobileAI');
+const mobileMenu=parentElement.querySelector('#mobileMenu');
+const overlay=parentElement.querySelector('#mobileOverlay');
+const aiBody=parentElement.querySelector('#aiBody');
+const aiInput=parentElement.querySelector('#aiInput');
+const aiSend=parentElement.querySelector('#aiSend');
 let leftCollapsed=false;
 function isMobile(){return window.innerWidth<=800;}
 function setAI(open){ai.classList.toggle('open',!!open);ai.setAttribute('aria-hidden',String(!open));if(open){setTimeout(()=>aiInput.focus(),250);}}
@@ -264,8 +250,8 @@ function sendMessage(){
   const text=aiInput.value.trim();
   if(!text || aiSend.disabled)return;
   aiSend.disabled=true;
-  const base=window.parent.location.pathname;
-  window.parent.location.href=base+'?finai_q='+encodeURIComponent(text);
+  aiInput.value='';
+  setTriggerValue('query', text);
 }
 leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{setSidebarCollapsed(!leftCollapsed);}});
 aiClose.addEventListener('click',()=>setAI(false));
@@ -279,24 +265,54 @@ window.addEventListener('resize',syncResponsive);
 setSidebarCollapsed(false);
 setAI(__AI_OPEN__);
 syncResponsive();
-</script>
-</body>
-</html>
-'''
 
-# Build chat bubbles server-side so the entire chat remains inside the overlay.
+}"""
+
+# Build chat bubbles server-side so they remain inside the AI overlay.
 message_blocks = []
-message_blocks.append("<div class='msg'><div class='bot'>✦</div><div class='msgtext'><b>Hi there! 👋</b><br><span class='muted'>I'm your Financial AI Assistant.<br>Ask me about the dashboard performance.</span></div></div>")
 for m in st.session_state.messages:
     role = m.get("role")
     content = html.escape(str(m.get("content", ""))).replace("\n", "<br>")
     if role == "user":
-        message_blocks.append(f'<div class="msg user"><div class="bubble">{content}</div></div>')
+        message_blocks.append(
+            f'<div class="msg user"><div class="bubble">{content}</div></div>'
+        )
     elif role == "assistant":
-        message_blocks.append(f'<div class="msg"><div class="bot">✦</div><div class="msgtext">{content}</div></div>')
+        message_blocks.append(
+            f'<div class="msg"><div class="bot">✦</div><div class="msgtext">{content}</div></div>'
+        )
 
-HTML = HTML.replace("__AI_MESSAGES__", "".join(message_blocks))
-HTML = HTML.replace("__AI_OPEN__", "true" if finai_query else "false")
+COMPONENT_HTML = COMPONENT_HTML.replace("__AI_MESSAGES__", "".join(message_blocks))
+COMPONENT_JS = COMPONENT_JS.replace("__AI_OPEN__", "true" if st.session_state.ai_open else "false")
 
-components.html(HTML, height=1550, scrolling=False)
+finai_component = components.component(
+    "finai_dashboard_v2",
+    html=COMPONENT_HTML,
+    css=COMPONENT_CSS,
+    js=COMPONENT_JS,
+    isolate_styles=False,
+)
 
+result = finai_component(
+    key="finai_dashboard",
+    on_query_change=lambda: None,
+)
+
+finai_query = getattr(result, "query", None)
+
+if finai_query:
+    st.session_state.ai_open = True
+    st.session_state.messages.append({"role": "user", "content": str(finai_query)})
+
+    llm_messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {
+            "role": "system",
+            "content": "Dashboard financial context:\n" + FINANCIAL_CONTEXT,
+        },
+    ]
+    llm_messages.extend(st.session_state.messages[-8:])
+
+    answer = call_openrouter(llm_messages)
+    st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.rerun()
