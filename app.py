@@ -13,9 +13,9 @@ except Exception:
     API_KEY = ""
 
 try:
-    MODEL = st.secrets.get("OPENROUTER_MODEL", "google/gemma-3-12b-it:free")
+    MODEL = st.secrets.get("OPENROUTER_MODEL", "google/gemma-4-26b-a4b-it:free)
 except Exception:
-    MODEL = "google/gemma-3-12b-it:free"
+    MODEL = "google/gemma-4-26b-a4b-it:free"
 
 FINANCIAL_CONTEXT = """
 Periode: September 2026
