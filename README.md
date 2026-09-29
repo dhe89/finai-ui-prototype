@@ -1,17 +1,12 @@
-# FinAI Streamlit Overlay v1
+# FinAI — Overlay LLM Integration v2
 
-Responsive FinAI UI prototype for Streamlit.
+Built directly from `finai_streamlit_overlay_v1`. The dashboard/sidebar/overlay visual baseline is preserved.
 
-## Changes
-- AI Assistant is closed by default on desktop and mobile.
-- Desktop AI is a fixed right-side overlay and never changes dashboard width.
-- AI opens from the header and closes with the `X` button.
-- Removed AI `>>` / `<<` controls.
-- Desktop left sidebar collapses to an icon-only rail and expands with a hamburger/menu control.
-- Mobile keeps the drawer behavior and mobile header controls.
-- Dashboard data/content remains unchanged.
+This version uses Streamlit Custom Components v2 for bidirectional communication so chat stays inside the existing AI overlay.
 
-## Run
-```bash
-streamlit run app.py
-```
+## Secret
+`OPENROUTER_API_KEY = "sk-or-v1-..."` in Streamlit Secrets.
+
+## Models
+Primary: `google/gemma-3-12b-it:free`
+Fallback on HTTP 429: `qwen/qwen3-4b:free`
