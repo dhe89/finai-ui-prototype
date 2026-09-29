@@ -1,16 +1,17 @@
-# FinAI Streamlit UI Prototype — Fixed
+# FinAI Streamlit Overlay v1
 
-Prototype UI only; no LLM/backend.
+Responsive FinAI UI prototype for Streamlit.
 
-The UI is rendered as one self-contained HTML component so CSS/JS interactions are not broken by Streamlit's DOM rendering.
+## Changes
+- AI Assistant is closed by default on desktop and mobile.
+- Desktop AI is a fixed right-side overlay and never changes dashboard width.
+- AI opens from the header and closes with the `X` button.
+- Removed AI `>>` / `<<` controls.
+- Desktop left sidebar collapses to an icon-only rail and expands with a hamburger/menu control.
+- Mobile keeps the drawer behavior and mobile header controls.
+- Dashboard data/content remains unchanged.
 
-## Features
-- Desktop left sidebar collapse: full menu -> icon rail.
-- Desktop AI sidebar close/open using X and AI button in header.
-- Main area automatically expands when either sidebar is closed.
-- Mobile left menu becomes a drawer.
-- Mobile AI opens/closes from the header AI button and X, matching the requested behavior.
-- Responsive dashboard/table/cards.
-
-## Streamlit Cloud
-Set the main file to `app.py`.
+## Run
+```bash
+streamlit run app.py
+```
