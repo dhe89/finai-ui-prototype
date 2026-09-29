@@ -1,6 +1,8 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
+import html
+import urllib.parse
 
 st.set_page_config(
     page_title="FinAI — Financial Intelligence",
@@ -119,6 +121,24 @@ if "messages" not in st.session_state:
 if "llm_test_result" not in st.session_state:
     st.session_state.llm_test_result = None
 
+if "last_finai_query" not in st.session_state:
+    st.session_state.last_finai_query = None
+
+# Messages are now rendered INSIDE the AI overlay.
+# A small query-string bridge lets the iframe ask Python to call OpenRouter
+# without exposing the API key to browser JavaScript.
+finai_query = st.query_params.get("finai_q")
+if finai_query and finai_query != st.session_state.last_finai_query:
+    st.session_state.last_finai_query = finai_query
+    st.session_state.messages.append({"role": "user", "content": finai_query})
+    llm_messages = [
+        {"role":"system","content":SYSTEM_PROMPT},
+        {"role":"system","content":"Dashboard financial context:\n" + FINANCIAL_CONTEXT},
+    ]
+    llm_messages.extend(st.session_state.messages[-8:])
+    answer = call_openrouter(llm_messages)
+    st.session_state.messages.append({"role":"assistant", "content":answer})
+
 
 # ============================================================
 # FINAL UI
@@ -168,7 +188,7 @@ button{font:inherit;cursor:pointer}
 .bottom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.small{padding:16px}.small-title{font-size:12px;font-weight:800}.kpi{display:flex;justify-content:space-between;margin-top:15px;font-size:9px}.kpi-label{color:#68736f}.kpi-value{font-size:11px;font-weight:800}
 .ai{position:fixed;z-index:200;top:0;right:0;width:min(390px,42vw);height:100dvh;background:#fff;border-left:1px solid #e2e9e5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:transform .24s ease,opacity .18s ease,visibility .24s ease}
 .ai.open{transform:translateX(0);opacity:1;visibility:visible}
-.ai-head{padding:24px 20px 17px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9ba49f}.ai-foot{padding:12px 18px 18px;border-top:1px solid #edf0ef}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
+.ai-head{padding:24px 20px 17px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9ba49f}.ai-foot{padding:12px 18px 18px;border-top:1px solid #edf0ef}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}.ai-input:focus{border-color:#9bb8ae}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410d;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
 .mobile-head{display:none}
 @media(max-width:800px){
  body{background:#f4f7f5}.app,.app.left-collapsed{display:block;min-height:100vh;overflow:visible}
@@ -214,8 +234,8 @@ button{font:inherit;cursor:pointer}
 
   <aside id="ai" class="ai" aria-hidden="true">
     <div class="ai-head"><div><div class="ai-title">AI Assistant</div><div class="ai-status"><span class="dot"></span>Ready to assist</div></div><button id="aiClose" class="ai-close" aria-label="Close AI Assistant">×</button></div>
-    <div class="ai-body"><div class="msg"><div class="bot">✦</div><div class="msgtext"><b>Hi there! 👋</b><br><span class="muted">I'm your Financial AI Assistant.<br>Ask me about the dashboard performance.</span></div></div></div>
-    <div class="ai-foot"><button id="openChat" class="send">Open AI Chat ↗</button></div>
+    <div id="aiBody" class="ai-body">__AI_MESSAGES__</div>
+    <div class="ai-foot"><div class="ai-input-row"><input id="aiInput" class="ai-input" placeholder="Tanyakan sesuatu tentang kinerja keuangan..." autocomplete="off"><button id="aiSend" class="ai-send" aria-label="Send">↑</button></div></div>
   </aside>
 </div>
 
@@ -232,88 +252,51 @@ const desktopAI=document.getElementById('desktopAI');
 const mobileAI=document.getElementById('mobileAI');
 const mobileMenu=document.getElementById('mobileMenu');
 const overlay=document.getElementById('mobileOverlay');
-const openChat=document.getElementById('openChat');
+const aiBody=document.getElementById('aiBody');
+const aiInput=document.getElementById('aiInput');
+const aiSend=document.getElementById('aiSend');
 let leftCollapsed=false;
 function isMobile(){return window.innerWidth<=800;}
-function setAI(open){ai.classList.toggle('open',!!open);ai.setAttribute('aria-hidden',String(!open));}
+function setAI(open){ai.classList.toggle('open',!!open);ai.setAttribute('aria-hidden',String(!open));if(open){setTimeout(()=>aiInput.focus(),250);}}
 function setSidebarCollapsed(collapsed){leftCollapsed=!!collapsed;app.classList.toggle('left-collapsed',leftCollapsed);leftToggle.textContent='☰';}
 function syncResponsive(){if(isMobile()){app.classList.remove('left-collapsed');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{left.classList.remove('mobile-open');overlay.classList.remove('show');}}
+function sendMessage(){
+  const text=aiInput.value.trim();
+  if(!text || aiSend.disabled)return;
+  aiSend.disabled=true;
+  const base=window.parent.location.pathname;
+  window.parent.location.href=base+'?finai_q='+encodeURIComponent(text);
+}
 leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{setSidebarCollapsed(!leftCollapsed);}});
 aiClose.addEventListener('click',()=>setAI(false));
 desktopAI.addEventListener('click',()=>setAI(true));
 mobileAI.addEventListener('click',()=>setAI(true));
 mobileMenu.addEventListener('click',()=>{left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));});
 overlay.addEventListener('click',()=>{left.classList.remove('mobile-open');overlay.classList.remove('show');});
-openChat.addEventListener('click',()=>{window.parent.postMessage({type:'finai_open_chat'},'*');});
+aiSend.addEventListener('click',sendMessage);
+aiInput.addEventListener('keydown',e=>{if(e.key==='Enter')sendMessage();});
 window.addEventListener('resize',syncResponsive);
 setSidebarCollapsed(false);
-setAI(false);
+setAI(__AI_OPEN__);
 syncResponsive();
 </script>
 </body>
 </html>
 '''
 
+# Build chat bubbles server-side so the entire chat remains inside the overlay.
+message_blocks = []
+message_blocks.append("<div class='msg'><div class='bot'>✦</div><div class='msgtext'><b>Hi there! 👋</b><br><span class='muted'>I'm your Financial AI Assistant.<br>Ask me about the dashboard performance.</span></div></div>")
+for m in st.session_state.messages:
+    role = m.get("role")
+    content = html.escape(str(m.get("content", ""))).replace("\n", "<br>")
+    if role == "user":
+        message_blocks.append(f'<div class="msg user"><div class="bubble">{content}</div></div>')
+    elif role == "assistant":
+        message_blocks.append(f'<div class="msg"><div class="bot">✦</div><div class="msgtext">{content}</div></div>')
+
+HTML = HTML.replace("__AI_MESSAGES__", "".join(message_blocks))
+HTML = HTML.replace("__AI_OPEN__", "true" if finai_query else "false")
+
 components.html(HTML, height=1550, scrolling=False)
 
-# ============================================================
-# SECURE PYTHON-SIDE LLM CHAT
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-    .llm-area{margin-top:-1px;padding:18px 20px 24px;background:#fff;border:1px solid #e7ece9;border-radius:16px}
-    .llm-title{font-size:18px;font-weight:800;color:#005642}
-    .llm-note{color:#7d8883;font-size:12px;margin-top:4px}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    '<div class="llm-area"><div class="llm-title">AI Assistant — LLM Test</div>'
-    '<div class="llm-note">OpenRouter free models · Financial context enabled</div></div>',
-    unsafe_allow_html=True,
-)
-
-if not OPENROUTER_API_KEY:
-    st.error("OpenRouter API key belum terbaca. Cek Streamlit Secrets: OPENROUTER_API_KEY atau api_key.")
-
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-prompt = st.chat_input("Tanyakan sesuatu tentang kinerja keuangan...")
-
-if prompt:
-    st.session_state.messages.append({"role":"user","content":prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    messages = [
-        {"role":"system","content":SYSTEM_PROMPT},
-        {"role":"system","content":"Dashboard financial context:\n" + FINANCIAL_CONTEXT},
-    ]
-    messages.extend(st.session_state.messages[-8:])
-
-    with st.chat_message("assistant"):
-        with st.spinner("FinAI sedang menganalisis..."):
-            answer = call_openrouter(messages)
-        st.markdown(answer)
-
-    st.session_state.messages.append({"role":"assistant","content":answer})
-
-# One-click diagnostic test.
-if st.button("Test LLM", type="primary"):
-    test_messages = [
-        {"role":"system","content":SYSTEM_PROMPT},
-        {"role":"system","content":"Dashboard financial context:\n" + FINANCIAL_CONTEXT},
-        {"role":"user","content":"Bandingkan net profit bulan ini dengan bulan lalu. Jelaskan perubahan dan faktor yang terlihat dari data."},
-    ]
-    with st.spinner("Testing free LLM..."):
-        st.session_state.llm_test_result = call_openrouter(test_messages)
-
-if st.session_state.llm_test_result:
-    st.markdown("### Jawaban LLM:")
-    st.write(st.session_state.llm_test_result)
