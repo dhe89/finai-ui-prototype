@@ -1,32 +1,16 @@
-# FinAI Streamlit UI Prototype
+# FinAI Streamlit UI Prototype — Fixed
 
-Prototype UI untuk FinAI — Financial Intelligence.
+Prototype UI only; no LLM/backend.
 
-## Isi
+The UI is rendered as one self-contained HTML component so CSS/JS interactions are not broken by Streamlit's DOM rendering.
 
-- `app.py` — Streamlit prototype, tanpa LLM/backend.
-- `requirements.txt` — dependency minimal.
+## Features
+- Desktop left sidebar collapse: full menu -> icon rail.
+- Desktop AI sidebar close/open using X and AI button in header.
+- Main area automatically expands when either sidebar is closed.
+- Mobile left menu becomes a drawer.
+- Mobile AI opens/closes from the header AI button and X, matching the requested behavior.
+- Responsive dashboard/table/cards.
 
-## Jalankan lokal
-
-```bash
-python -m pip install -r requirements.txt
-streamlit run app.py
-```
-
-## Deploy ke Streamlit Community Cloud
-
-1. Buat repository GitHub baru.
-2. Upload `app.py` dan `requirements.txt`.
-3. Di Streamlit Community Cloud pilih repository tersebut.
-4. Main file: `app.py`.
-5. Deploy.
-
-Prototype ini sengaja menggunakan HTML/CSS/JavaScript di dalam Streamlit Component agar layout responsive bisa dibuat lebih bebas daripada memakai widget Streamlit biasa.
-
-## Responsive behavior
-
-- Desktop: Sidebar kiri + dashboard + AI Assistant kanan.
-- Tablet: AI Assistant dapat menjadi drawer.
-- Mobile: dashboard full-width, menu menjadi drawer kiri, AI menjadi drawer kanan.
-- Tidak menggunakan LLM; chat hanya simulasi UI.
+## Streamlit Cloud
+Set the main file to `app.py`.

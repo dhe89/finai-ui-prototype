@@ -1,925 +1,103 @@
-
 import streamlit as st
+import streamlit.components.v1 as components
 
-st.set_page_config(
-    page_title="FinAI — Financial Intelligence",
-    page_icon="✦",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+st.set_page_config(page_title="FinAI — Financial Intelligence", page_icon="✦", layout="wide", initial_sidebar_state="collapsed")
 
-# -----------------------------
-# State
-# -----------------------------
-if "left_collapsed" not in st.session_state:
-    st.session_state.left_collapsed = False
-
-if "ai_open" not in st.session_state:
-    st.session_state.ai_open = True
-
-# -----------------------------
-# Demo data
-# -----------------------------
-metrics = [
-    ("Total Assets", "190,510.7", "-1.98% vs last month"),
-    ("Total Credit", "104,549.2", "-2.19% vs last month"),
-    ("Total DPK", "158,545.5", "-2.82% vs last month"),
-    ("Net Profit", "699.1", "-13.94% vs last month"),
-]
-
-sections = [
-    ("ASSET", [
-        ("Total Asset", "173,731.1", "194,349.9", "190,510.7", "192,871.1", "98.8%"),
-        ("Total Credit", "122,208.6", "106,885.6", "104,549.2", "101,808.3", "102.7%"),
-        ("Total Investment", "76,318.9", "79,825.3", "79,599.7", "80,855.6", "98.4%"),
-    ]),
-    ("FUNDING", [
-        ("Total DPK", "146,764.4", "163,153.8", "158,545.5", "160,414.1", "98.8%"),
-        ("Total Other Funding", "4,460.0", "4,980.0", "5,045.0", "5,040.0", "100.1%"),
-        ("Low Cost Funding %", "88.3", "78.0", "77.4", "81.0", "95.6%"),
-    ]),
-    ("PROFITABILITY", [
-        ("Revenue", "1,373.4", "1,274.2", "1,255.2", "1,378.0", "91.1%"),
-        ("Operating Expense", "482.9", "461.8", "556.1", "535.4", "103.9%"),
-        ("CKPN", "210.9", "106.9", "207.9", "198.0", "105.0%"),
-        ("Net Profit", "890.5", "812.4", "699.1", "727.1", "96.1%"),
-    ]),
-    ("ASSET QUALITY", [
-        ("NPL Ratio", "3.6", "0.0", "4.2", "2.2", "190.9%"),
-        ("CKPN Coverage", "107.0", "114.3", "115.9", "110.0", "105.4%"),
-    ]),
-]
-
-# -----------------------------
-# CSS
-# -----------------------------
-st.markdown("""
+HTML = r'''
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <style>
-:root {
-    --green:#005642;
-    --green-2:#00705a;
-    --lime:#b7f51d;
-    --bg:#f4f7f5;
-    --card:#ffffff;
-    --text:#18211f;
-    --muted:#8a9491;
-    --line:#e8ecea;
-}
-
-html, body, [data-testid="stAppViewContainer"] {
-    background: var(--bg) !important;
-}
-
-[data-testid="stHeader"] {
-    background: transparent !important;
-}
-
-.block-container {
-    max-width: none !important;
-    padding: 0 !important;
-}
-
-section[data-testid="stSidebar"] {
-    display: none !important;
-}
-
-/* Remove Streamlit chrome around custom controls */
-div[data-testid="stVerticalBlock"] > div:has(> div.finai-shell) {
-    padding: 0 !important;
-}
-
-.finai-shell {
-    min-height: 100vh;
-    display: grid;
-    grid-template-columns: var(--left-w) minmax(0,1fr) var(--ai-w);
-    background: var(--bg);
-    overflow: hidden;
-    transition: grid-template-columns .24s ease;
-}
-
-.finai-shell.left-collapsed {
-    grid-template-columns: 76px minmax(0,1fr) var(--ai-w);
-}
-
-.finai-shell.ai-closed {
-    grid-template-columns: var(--left-w) minmax(0,1fr) 0px;
-}
-
-.finai-shell.left-collapsed.ai-closed {
-    grid-template-columns: 76px minmax(0,1fr) 0px;
-}
-
-.left-panel {
-    background: var(--green);
-    color:#fff;
-    position:relative;
-    min-width:0;
-    overflow:hidden;
-    padding:24px 16px 18px;
-}
-
-.left-panel.collapsed {
-    padding-left:12px;
-    padding-right:12px;
-}
-
-.brand {
-    display:flex;
-    align-items:center;
-    gap:10px;
-    font-weight:800;
-    font-size:20px;
-    margin:2px 4px 30px;
-    white-space:nowrap;
-}
-
-.brand-mark, .ai-mark {
-    width:30px;
-    height:30px;
-    border-radius:9px;
-    background:var(--lime);
-    color:var(--green);
-    display:grid;
-    place-items:center;
-    font-weight:900;
-    flex:0 0 auto;
-}
-
-.left-panel.collapsed .brand-text,
-.left-panel.collapsed .nav-text,
-.left-panel.collapsed .config-text {
-    display:none;
-}
-
-.left-panel.collapsed .brand {
-    justify-content:center;
-    margin-left:0;
-    margin-right:0;
-}
-
-.nav {
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-}
-
-.nav-item {
-    height:46px;
-    border-radius:13px;
-    display:flex;
-    align-items:center;
-    gap:12px;
-    padding:0 12px;
-    color:#d9ece6;
-    font-size:14px;
-    font-weight:650;
-    white-space:nowrap;
-}
-
-.nav-item.active {
-    background:#14765f;
-    color:#fff;
-}
-
-.left-panel.collapsed .nav-item {
-    justify-content:center;
-    padding:0;
-}
-
-.nav-icon {
-    width:22px;
-    text-align:center;
-    font-size:16px;
-    flex:0 0 22px;
-}
-
-.left-toggle {
-    position:absolute;
-    top:76px;
-    right:-13px;
-    z-index:5;
-    width:27px;
-    height:27px;
-    border-radius:50%;
-    border:1px solid rgba(255,255,255,.18);
-    background:#fff;
-    color:var(--green);
-    box-shadow:0 4px 15px rgba(0,0,0,.15);
-}
-
-.left-panel.collapsed .left-toggle {
-    right:-10px;
-}
-
-.config {
-    position:absolute;
-    left:16px;
-    right:16px;
-    bottom:18px;
-    border-top:1px solid rgba(255,255,255,.12);
-    padding-top:15px;
-    color:#9ac3b8;
-    font-size:9px;
-    letter-spacing:1.3px;
-}
-
-.config-pill {
-    margin-top:9px;
-    padding:7px 9px;
-    border-radius:7px;
-    background:#fff;
-    color:#60736e;
-    letter-spacing:0;
-    font-size:9px;
-}
-
-.status {
-    margin-top:8px;
-    letter-spacing:0;
-    color:#d2e7e1;
-    font-size:9px;
-}
-
-.status-dot {
-    display:inline-block;
-    width:5px;
-    height:5px;
-    border-radius:50%;
-    background:var(--lime);
-    margin-right:5px;
-}
-
-.main-panel {
-    min-width:0;
-    overflow:auto;
-    padding:28px clamp(18px,3vw,44px) 42px;
-}
-
-.topbar {
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:18px;
-    margin-bottom:20px;
-}
-
-.eyebrow {
-    color:#a3aaa7;
-    font-size:9px;
-    letter-spacing:2px;
-    font-weight:700;
-    margin-bottom:3px;
-}
-
-.page-title {
-    font-size:31px;
-    line-height:1.05;
-    font-weight:800;
-    margin:0;
-    color:var(--text);
-}
-
-.page-subtitle {
-    color:#9ba5a1;
-    font-size:11px;
-    margin-top:7px;
-}
-
-.period {
-    background:#eff6d9;
-    color:#6c7d42;
-    border-radius:18px;
-    padding:10px 15px;
-    font-size:10px;
-    white-space:nowrap;
-    font-weight:700;
-}
-
-.metrics {
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:12px;
-    margin-bottom:14px;
-}
-
-.metric-card, .table-card, .small-card {
-    background:var(--card);
-    border:1px solid #edf0ef;
-    border-radius:17px;
-    box-shadow:0 7px 20px rgba(30,65,55,.045);
-}
-
-.metric-card {
-    padding:17px;
-}
-
-.metric-label {
-    color:#909b97;
-    font-size:10px;
-}
-
-.metric-value {
-    color:#17211f;
-    font-size:22px;
-    font-weight:800;
-    margin-top:6px;
-}
-
-.metric-change {
-    color:#a78282;
-    font-size:8px;
-    margin-top:5px;
-}
-
-.table-card {
-    overflow:hidden;
-}
-
-.table-head {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:16px 17px 12px;
-}
-
-.table-title {
-    font-size:14px;
-    font-weight:800;
-}
-
-.table-caption {
-    font-size:8px;
-    color:#9ba5a1;
-    margin-top:3px;
-}
-
-.switcher {
-    background:#f0f6df;
-    color:#718044;
-    border-radius:18px;
-    padding:8px 12px;
-    font-size:9px;
-    font-weight:700;
-}
-
-.data-wrap {
-    overflow-x:auto;
-}
-
-table {
-    width:100%;
-    border-collapse:collapse;
-    min-width:650px;
-    font-size:8px;
-}
-
-th {
-    color:#a1aaa7;
-    font-weight:600;
-    padding:8px 12px;
-    text-align:right;
-    border-top:1px solid var(--line);
-}
-
-th:first-child, td:first-child {
-    text-align:left;
-}
-
-td {
-    color:#737d79;
-    padding:10px 12px;
-    text-align:right;
-    border-top:1px solid #edf0ef;
-}
-
-tr.section-row td {
-    background:#eef5ef;
-    color:#64806f;
-    font-size:9px;
-    letter-spacing:1.5px;
-    font-weight:800;
-    text-align:left;
-    padding:8px 12px;
-}
-
-.bottom-cards {
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:12px;
-    margin-top:12px;
-}
-
-.small-card {
-    padding:16px;
-}
-
-.small-title {
-    font-size:12px;
-    font-weight:800;
-}
-
-.small-caption {
-    color:#9ca6a2;
-    font-size:8px;
-    margin-top:2px;
-}
-
-.kpi {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-top:15px;
-    font-size:9px;
-}
-
-.kpi-label {
-    color:#68736f;
-}
-
-.kpi-value {
-    font-weight:800;
-    font-size:11px;
-}
-
-.ai-panel {
-    background:#fff;
-    border-left:1px solid #e9eeeb;
-    min-width:0;
-    overflow:hidden;
-    display:flex;
-    flex-direction:column;
-}
-
-.ai-panel.closed {
-    display:none;
-}
-
-.ai-header {
-    padding:24px 20px 17px;
-    border-bottom:1px solid #edf0ef;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-}
-
-.ai-title {
-    font-size:16px;
-    font-weight:800;
-}
-
-.ai-status {
-    color:#9ba49f;
-    font-size:8px;
-    margin-top:5px;
-}
-
-.ai-status-dot {
-    display:inline-block;
-    width:5px;
-    height:5px;
-    border-radius:50%;
-    background:var(--lime);
-    margin-right:5px;
-}
-
-.ai-close {
-    width:29px;
-    height:29px;
-    border-radius:50%;
-    border:0;
-    background:#f0f2f1;
-    color:#7c8581;
-    font-size:17px;
-}
-
-.ai-body {
-    padding:24px 18px;
-    overflow:auto;
-    flex:1;
-}
-
-.msg {
-    display:flex;
-    gap:10px;
-    margin-bottom:22px;
-}
-
-.msg.user {
-    justify-content:flex-end;
-}
-
-.bot-icon {
-    width:22px;
-    height:22px;
-    border-radius:50%;
-    background:var(--green);
-    color:var(--lime);
-    display:grid;
-    place-items:center;
-    font-size:11px;
-    flex:0 0 auto;
-}
-
-.msg-text {
-    color:#293330;
-    font-size:11px;
-    line-height:1.45;
-    max-width:270px;
-}
-
-.user-bubble {
-    border:1px solid #e1e5e3;
-    border-radius:9px;
-    padding:10px 12px;
-    color:#68716e;
-    font-size:10px;
-    max-width:230px;
-}
-
-.ai-footer {
-    padding:12px 18px 18px;
-    border-top:1px solid #edf0ef;
-}
-
-.ai-input {
-    border:1px solid #e1e5e3;
-    border-radius:9px;
-    padding:11px 12px;
-    color:#a6afab;
-    font-size:9px;
-    margin-bottom:8px;
-}
-
-.ai-send {
-    width:100%;
-    border:0;
-    border-radius:9px;
-    padding:10px;
-    background:var(--lime);
-    color:#25410d;
-    font-size:9px;
-    font-weight:800;
-}
-
-/* Header AI launcher */
-.ai-launch {
-    position:fixed;
-    right:22px;
-    top:18px;
-    z-index:20;
-    width:42px;
-    height:42px;
-    border-radius:50%;
-    border:1px solid #e8ecea;
-    background:#fff;
-    color:var(--green);
-    box-shadow:0 6px 18px rgba(0,0,0,.08);
-    display:grid;
-    place-items:center;
-    font-size:17px;
-}
-
-/* Streamlit button normalization */
-div[data-testid="stButton"] {
-    margin:0 !important;
-}
-div[data-testid="stButton"] > button {
-    font-family:inherit !important;
-}
-
-/* Desktop control buttons are transparent and positioned by containers */
-.toggle-btn button {
-    border:0 !important;
-    background:transparent !important;
-    color:inherit !important;
-    box-shadow:none !important;
-}
-
-/* Mobile */
-@media (max-width: 800px) {
-    .finai-shell,
-    .finai-shell.left-collapsed,
-    .finai-shell.ai-closed,
-    .finai-shell.left-collapsed.ai-closed {
-        display:block;
-        min-height:100vh;
-        overflow:visible;
-    }
-
-    .left-panel {
-        position:fixed;
-        z-index:100;
-        inset:0 auto 0 0;
-        width:min(78vw,320px);
-        transform:translateX(-105%);
-        transition:transform .25s ease;
-        box-shadow:12px 0 40px rgba(0,0,0,.18);
-    }
-
-    .left-panel.mobile-open {
-        transform:translateX(0);
-    }
-
-    .left-panel.collapsed {
-        padding:24px 16px 18px;
-    }
-
-    .left-panel.collapsed .brand-text,
-    .left-panel.collapsed .nav-text,
-    .left-panel.collapsed .config-text {
-        display:inline;
-    }
-
-    .left-panel.collapsed .brand {
-        justify-content:flex-start;
-        margin-left:4px;
-        margin-right:4px;
-    }
-
-    .left-panel.collapsed .nav-item {
-        justify-content:flex-start;
-        padding:0 12px;
-    }
-
-    .left-toggle {
-        display:none;
-    }
-
-    .main-panel {
-        padding:26px 18px 36px;
-        overflow:visible;
-    }
-
-    .topbar {
-        padding-top:46px;
-    }
-
-    .page-title {
-        font-size:29px;
-    }
-
-    .metrics {
-        grid-template-columns:repeat(2,minmax(0,1fr));
-        gap:12px;
-    }
-
-    .metric-card {
-        padding:17px;
-    }
-
-    .metric-value {
-        font-size:20px;
-    }
-
-    .bottom-cards {
-        grid-template-columns:1fr;
-    }
-
-    .ai-panel {
-        position:fixed;
-        z-index:120;
-        inset:0;
-        width:100vw;
-        height:100dvh;
-        border:0;
-    }
-
-    .ai-panel.closed {
-        display:none;
-    }
-
-    .ai-launch {
-        top:17px;
-        right:18px;
-    }
-
-    .mobile-menu-btn {
-        position:fixed;
-        top:17px;
-        left:18px;
-        z-index:110;
-        width:42px;
-        height:42px;
-        border-radius:50%;
-        border:1px solid #e7ebe9;
-        background:#fff;
-        box-shadow:0 6px 18px rgba(0,0,0,.08);
-    }
-
-    .mobile-brand {
-        position:fixed;
-        top:24px;
-        left:50%;
-        transform:translateX(-50%);
-        z-index:105;
-        display:flex;
-        align-items:center;
-        gap:8px;
-        font-weight:800;
-        font-size:17px;
-    }
-
-    .mobile-overlay {
-        position:fixed;
-        inset:0;
-        z-index:90;
-        background:rgba(0,48,38,.28);
-    }
-}
-
-@media (min-width: 801px) {
-    .mobile-menu-btn, .mobile-brand, .mobile-overlay {
-        display:none;
-    }
-}
+*{box-sizing:border-box}html,body{margin:0;padding:0;width:100%;background:#f4f7f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18211f}button{font:inherit;cursor:pointer}
+:root{--green:#005642;--green2:#08735d;--lime:#b7f51d;--bg:#f4f7f5;--line:#e7ece9;--muted:#8d9793}
+.app{min-height:100vh;display:grid;grid-template-columns:250px minmax(0,1fr) 360px;background:var(--bg);transition:grid-template-columns .25s ease;overflow:hidden}
+.app.left-collapsed{grid-template-columns:76px minmax(0,1fr) 360px}.app.ai-closed{grid-template-columns:250px minmax(0,1fr) 0}.app.left-collapsed.ai-closed{grid-template-columns:76px minmax(0,1fr) 0}
+.left{position:relative;background:var(--green);color:#fff;padding:24px 16px 18px;min-width:0;overflow:hidden}.app.left-collapsed .left{padding-left:12px;padding-right:12px}
+.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;margin:2px 4px 30px;white-space:nowrap}.brand-mark,.ai-mark{width:30px;height:30px;border-radius:9px;background:var(--lime);color:var(--green);display:grid;place-items:center;font-weight:900;flex:none}
+.nav{display:flex;flex-direction:column;gap:8px}.nav-item{height:46px;border-radius:13px;display:flex;align-items:center;gap:12px;padding:0 12px;color:#d9ece6;font-size:14px;font-weight:650;white-space:nowrap}.nav-item.active{background:#14765f;color:#fff}.nav-icon{width:22px;text-align:center;flex:none}.app.left-collapsed .brand-text,.app.left-collapsed .nav-text,.app.left-collapsed .config-text,.app.left-collapsed .config-pill,.app.left-collapsed .status{display:none}.app.left-collapsed .brand{justify-content:center}.app.left-collapsed .nav-item{justify-content:center;padding:0}
+.left-toggle{position:absolute;right:-12px;top:76px;z-index:20;width:28px;height:28px;border-radius:50%;border:1px solid #dfe7e3;background:#fff;color:var(--green);box-shadow:0 4px 15px #0002}.config{position:absolute;left:16px;right:16px;bottom:18px;border-top:1px solid #ffffff1f;padding-top:15px;color:#9ac3b8;font-size:9px;letter-spacing:1.3px}.config-pill{margin-top:9px;padding:7px 9px;border-radius:7px;background:#fff;color:#60736e;letter-spacing:0;font-size:9px}.status{margin-top:8px;color:#d2e7e1;font-size:9px;letter-spacing:0}.dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--lime);margin-right:5px}
+.main{min-width:0;overflow:auto;padding:30px clamp(20px,3vw,44px) 44px}.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px}.eyebrow{color:#a0aaa6;font-size:9px;letter-spacing:2px;font-weight:700}.title{font-size:31px;line-height:1.05;font-weight:800;margin:3px 0 0}.subtitle{color:#9aa49f;font-size:11px;margin-top:7px}.period{background:#eff6d9;color:#6c7d42;border-radius:18px;padding:10px 15px;font-size:10px;font-weight:700;white-space:nowrap}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}.card{background:#fff;border:1px solid #edf0ef;border-radius:17px;box-shadow:0 7px 20px #1e41370b}.metric{padding:17px}.metric-label{color:#909b97;font-size:10px}.metric-value{font-size:22px;font-weight:800;margin-top:6px}.metric-change{color:#a78282;font-size:8px;margin-top:5px}
+.table-card{overflow:hidden}.table-head{display:flex;justify-content:space-between;align-items:center;padding:16px 17px 12px}.table-title{font-size:14px;font-weight:800}.caption{font-size:8px;color:#9ba5a1;margin-top:3px}.switcher{background:#f0f6df;color:#718044;border-radius:18px;padding:8px 12px;font-size:9px;font-weight:700}.data-wrap{overflow-x:auto}table{width:100%;min-width:680px;border-collapse:collapse;font-size:8px}th{color:#a1aaa7;font-weight:600;padding:8px 12px;text-align:right;border-top:1px solid var(--line)}th:first-child,td:first-child{text-align:left}td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef}tr.section td{background:#eef5ef;color:#64806f;font-size:9px;letter-spacing:1.5px;font-weight:800;text-align:left;padding:8px 12px}
+.bottom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.small{padding:16px}.small-title{font-size:12px;font-weight:800}.kpi{display:flex;justify-content:space-between;margin-top:15px;font-size:9px}.kpi-label{color:#68736f}.kpi-value{font-size:11px;font-weight:800}
+.ai{background:#fff;border-left:1px solid #e9eeeb;min-width:0;display:flex;flex-direction:column;overflow:hidden;transition:opacity .2s}.app.ai-closed .ai{visibility:hidden}.ai-head{padding:24px 20px 17px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{width:29px;height:29px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:18px}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.msg.user{justify-content:flex-end}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9ba49f}.bubble{border:1px solid #e1e5e3;border-radius:9px;padding:10px 12px;color:#68716e;font-size:10px;max-width:250px}.ai-foot{padding:12px 18px 18px;border-top:1px solid #edf0ef}.input{border:1px solid #e1e5e3;border-radius:9px;padding:11px 12px;color:#a6afab;font-size:9px;margin-bottom:8px}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
+.ai-launch{position:fixed;right:22px;top:18px;z-index:50;width:42px;height:42px;border-radius:50%;border:1px solid #e8ecea;background:#fff;color:var(--green);box-shadow:0 6px 18px #00000014;display:grid;place-items:center}.hidden{display:none!important}
+.mobile-head{display:none}
+@media(max-width:800px){
+ body{background:#f4f7f5}.app,.app.left-collapsed,.app.ai-closed,.app.left-collapsed.ai-closed{display:block;min-height:100vh;overflow:visible}.left{position:fixed;z-index:100;inset:0 auto 0 0;width:min(78vw,320px);height:100dvh;transform:translateX(-105%);transition:transform .25s ease;box-shadow:12px 0 40px #0003;padding:24px 16px 18px}.left.mobile-open{transform:translateX(0)}.left-toggle{display:none}.app.left-collapsed .left{padding:24px 16px 18px}.app.left-collapsed .brand-text,.app.left-collapsed .nav-text,.app.left-collapsed .config-text,.app.left-collapsed .config-pill,.app.left-collapsed .status{display:inline}.app.left-collapsed .brand{justify-content:flex-start}.app.left-collapsed .nav-item{justify-content:flex-start;padding:0 12px}
+ .main{padding:96px 18px 38px;overflow:visible}.topbar{margin-bottom:20px}.title{font-size:29px}.metrics{gap:12px}.metric{padding:17px}.metric-value{font-size:20px}.bottom{grid-template-columns:1fr}.mobile-head{display:flex;position:fixed;top:0;left:0;right:0;height:74px;z-index:80;background:#fff;border-bottom:1px solid #edf0ef;align-items:center;justify-content:center}.mobile-menu{position:absolute;left:18px;top:16px;width:42px;height:42px;border-radius:50%;border:1px solid #e7ebe9;background:#fff;font-size:21px;color:#66716d}.mobile-brand{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800}.mobile-ai{position:absolute;right:18px;top:16px;width:42px;height:42px;border-radius:50%;border:1px solid #e7ebe9;background:#fff;color:var(--green);font-size:17px}.ai{position:fixed;z-index:120;inset:0;width:100vw;height:100dvh;border:0}.app.ai-closed .ai{display:none}.ai-launch{display:none}.mobile-overlay{display:none;position:fixed;inset:0;z-index:90;background:#00302655}.mobile-overlay.show{display:block}.ai-head{padding-top:24px}
+}
+@media(min-width:801px){.mobile-head,.mobile-overlay{display:none}}
 </style>
-""", unsafe_allow_html=True)
+</head>
+<body>
+<div id="app" class="app">
+  <aside id="left" class="left">
+    <button id="leftToggle" class="left-toggle" aria-label="Toggle menu">◀</button>
+    <div class="brand"><span class="brand-mark">✦</span><span class="brand-text">FinAI</span></div>
+    <nav class="nav">
+      <div class="nav-item active"><span class="nav-icon">▣</span><span class="nav-text">Dashboard Kinerja</span></div>
+      <div class="nav-item"><span class="nav-icon">▤</span><span class="nav-text">Laporan Keuangan</span></div>
+      <div class="nav-item"><span class="nav-icon">◉</span><span class="nav-text">Rincian Data</span></div>
+      <div class="nav-item"><span class="nav-icon">⚙</span><span class="nav-text">Setting Parameter</span></div>
+    </nav>
+    <div class="config"><span class="config-text">AI CONFIGURATION</span><div class="config-pill">Gemma 4 · Python Evidence</div><div class="status"><span class="dot"></span>Local Financial Intelligence</div></div>
+  </aside>
 
-# -----------------------------
-# Render shell using HTML for visual structure
-# -----------------------------
-left_class = "left-panel collapsed" if st.session_state.left_collapsed else "left-panel"
-ai_class = "ai-panel" if st.session_state.ai_open else "ai-panel closed"
-
-# Desktop state is represented by CSS variables/classes.
-shell_classes = "finai-shell"
-if st.session_state.left_collapsed:
-    shell_classes += " left-collapsed"
-if not st.session_state.ai_open:
-    shell_classes += " ai-closed"
-
-# Mobile drawer controls are real Streamlit controls placed above the visual shell.
-mobile_cols = st.columns([1, 5, 1])
-with mobile_cols[0]:
-    st.markdown('<div class="mobile-menu-btn">☰</div>', unsafe_allow_html=True)
-with mobile_cols[1]:
-    st.markdown('<div class="mobile-brand"><span class="brand-mark">✦</span> FinAI</div>', unsafe_allow_html=True)
-with mobile_cols[2]:
-    if not st.session_state.ai_open:
-        if st.button("✦", key="mobile_ai_open"):
-            st.session_state.ai_open = True
-            st.rerun()
-
-# Left toggle (desktop)
-if st.session_state.left_collapsed:
-    left_toggle_label = "▶"
-else:
-    left_toggle_label = "◀"
-
-# Use a compact control row that remains visible on desktop.
-toggle_col1, toggle_col2 = st.columns([1, 10])
-with toggle_col1:
-    if st.button(left_toggle_label, key="left_toggle"):
-        st.session_state.left_collapsed = not st.session_state.left_collapsed
-        st.rerun()
-
-# Main shell
-st.markdown(f'<div class="{shell_classes}">', unsafe_allow_html=True)
-
-# Left sidebar
-st.markdown(f'<aside class="{left_class}">', unsafe_allow_html=True)
-st.markdown("""
-<div class="brand">
-    <span class="brand-mark">✦</span>
-    <span class="brand-text">FinAI</span>
-</div>
-<div class="nav">
-    <div class="nav-item active"><span class="nav-icon">▣</span><span class="nav-text">Dashboard Kinerja</span></div>
-    <div class="nav-item"><span class="nav-icon">▤</span><span class="nav-text">Laporan Keuangan</span></div>
-    <div class="nav-item"><span class="nav-icon">◉</span><span class="nav-text">Rincian Data</span></div>
-    <div class="nav-item"><span class="nav-icon">⚙</span><span class="nav-text">Setting Parameter</span></div>
-</div>
-<div class="config">
-    <span class="config-text">AI CONFIGURATION</span>
-    <div class="config-pill">Gemma 4 · Python Evidence</div>
-    <div class="status"><span class="status-dot"></span>Local Financial Intelligence</div>
-</div>
-""", unsafe_allow_html=True)
-st.markdown("</aside>", unsafe_allow_html=True)
-
-# Main content
-st.markdown('<main class="main-panel">', unsafe_allow_html=True)
-st.markdown("""
-<div class="topbar">
-  <div>
-    <div class="eyebrow">FINANCIAL INTELLIGENCE</div>
-    <div class="page-title">Overview</div>
-    <div class="page-subtitle">Financial performance overview for September 2026</div>
-  </div>
-  <div class="period">September 2026⌄</div>
-</div>
-""", unsafe_allow_html=True)
-
-metric_html = '<div class="metrics">'
-for label, value, change in metrics:
-    metric_html += f"""
-    <div class="metric-card">
-      <div class="metric-label">{label}</div>
-      <div class="metric-value">{value}</div>
-      <div class="metric-change">{change}</div>
+  <main class="main">
+    <div class="topbar"><div><div class="eyebrow">FINANCIAL INTELLIGENCE</div><div class="title">Overview</div><div class="subtitle">Financial performance overview for September 2026</div></div><div class="period">September 2026⌄</div></div>
+    <div class="metrics">
+      <div class="card metric"><div class="metric-label">Total Assets</div><div class="metric-value">190,510.7</div><div class="metric-change">-1.98% vs last month</div></div>
+      <div class="card metric"><div class="metric-label">Total Credit</div><div class="metric-value">104,549.2</div><div class="metric-change">-2.19% vs last month</div></div>
+      <div class="card metric"><div class="metric-label">Total DPK</div><div class="metric-value">158,545.5</div><div class="metric-change">-2.82% vs last month</div></div>
+      <div class="card metric"><div class="metric-label">Net Profit</div><div class="metric-value">699.1</div><div class="metric-change">-13.94% vs last month</div></div>
     </div>
-    """
-metric_html += '</div>'
-st.markdown(metric_html, unsafe_allow_html=True)
+    <section class="card table-card"><div class="table-head"><div><div class="table-title">Performance Overview</div><div class="caption">Current position, historical context and target achievement</div></div><div class="switcher">Monthly · YTD · YoY</div></div><div class="data-wrap"><table><thead><tr><th>Keterangan</th><th>Tahun Lalu</th><th>Bulan Lalu</th><th>Bulan Ini</th><th>Target</th><th>Ach.</th></tr></thead><tbody>
+      <tr class="section"><td colspan="6">ASSET</td></tr><tr><td>Total Asset</td><td>173,731.1</td><td>194,349.9</td><td>190,510.7</td><td>192,871.1</td><td>98.8%</td></tr><tr><td>Total Credit</td><td>122,208.6</td><td>106,885.6</td><td>104,549.2</td><td>101,808.3</td><td>102.7%</td></tr><tr><td>Total Investment</td><td>76,318.9</td><td>79,825.3</td><td>79,599.7</td><td>80,855.6</td><td>98.4%</td></tr>
+      <tr class="section"><td colspan="6">FUNDING</td></tr><tr><td>Total DPK</td><td>146,764.4</td><td>163,153.8</td><td>158,545.5</td><td>160,414.1</td><td>98.8%</td></tr><tr><td>Total Other Funding</td><td>4,460.0</td><td>4,980.0</td><td>5,045.0</td><td>5,040.0</td><td>100.1%</td></tr><tr><td>Low Cost Funding %</td><td>88.3</td><td>78.0</td><td>77.4</td><td>81.0</td><td>95.6%</td></tr>
+      <tr class="section"><td colspan="6">PROFITABILITY</td></tr><tr><td>Revenue</td><td>1,373.4</td><td>1,274.2</td><td>1,255.2</td><td>1,378.0</td><td>91.1%</td></tr><tr><td>Operating Expense</td><td>482.9</td><td>461.8</td><td>556.1</td><td>535.4</td><td>103.9%</td></tr><tr><td>CKPN</td><td>210.9</td><td>106.9</td><td>207.9</td><td>198.0</td><td>105.0%</td></tr><tr><td>Net Profit</td><td>890.5</td><td>812.4</td><td>699.1</td><td>727.1</td><td>96.1%</td></tr>
+      <tr class="section"><td colspan="6">ASSET QUALITY</td></tr><tr><td>NPL Ratio</td><td>3.6</td><td>0.0</td><td>4.2</td><td>2.2</td><td>190.9%</td></tr><tr><td>CKPN Coverage</td><td>107.0</td><td>114.3</td><td>115.9</td><td>110.0</td><td>105.4%</td></tr>
+    </tbody></table></div></section>
+    <div class="bottom"><div class="card small"><div class="small-title">Profitability</div><div class="caption">Revenue, expense and net profit</div><div class="kpi"><span class="kpi-label">Revenue</span><span class="kpi-value">1,255.2</span></div><div class="kpi"><span class="kpi-label">Operating Expense</span><span class="kpi-value">556.1</span></div><div class="kpi"><span class="kpi-label">Net Profit</span><span class="kpi-value">699.1</span></div></div><div class="card small"><div class="small-title">Asset Quality</div><div class="caption">Risk indicators and coverage</div><div class="kpi"><span class="kpi-label">NPL Ratio</span><span class="kpi-value">4.20%</span></div><div class="kpi"><span class="kpi-label">CKPN Coverage</span><span class="kpi-value">115.93%</span></div><div class="kpi"><span class="kpi-label">Low Cost Funding</span><span class="kpi-value">77.40%</span></div></div></div>
+  </main>
 
-table_html = """
-<div class="table-card">
-  <div class="table-head">
-    <div>
-      <div class="table-title">Performance Overview</div>
-      <div class="table-caption">Current position, historical context and target achievement</div>
-    </div>
-    <div class="switcher">Monthly · YTD · YoY</div>
-  </div>
-  <div class="data-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Keterangan</th><th>Tahun Lalu</th><th>Bulan Lalu</th><th>Bulan Ini</th><th>Target</th><th>Ach.</th>
-      </tr>
-    </thead>
-    <tbody>
-"""
-for section, rows in sections:
-    table_html += f'<tr class="section-row"><td colspan="6">{section}</td></tr>'
-    for row in rows:
-        table_html += "<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>"
-table_html += """
-    </tbody>
-  </table>
-  </div>
+  <aside id="ai" class="ai">
+    <div class="ai-head"><div><div class="ai-title">AI Assistant</div><div class="ai-status"><span class="dot"></span>Ready to assist</div></div><button id="aiClose" class="ai-close" aria-label="Close AI">×</button></div>
+    <div class="ai-body"><div class="msg"><div class="bot">✦</div><div class="msgtext"><b>Hi there! 👋</b><br><span class="muted">I'm your Financial AI Assistant.<br>How can I help you today?</span></div></div><div class="msg user"><div class="bubble">Hello</div></div><div class="msg"><div class="bot">✦</div><div class="msgtext">Do you want to compare the current performance with the previous month?</div></div><div class="msg user"><div class="bubble">Yes, compare it with the previous month</div></div><div class="msg"><div class="bot">✦</div><div class="msgtext">You spent <b>699.1 net profit</b> this month versus <b>812.4</b> previous month. That's a <b>13.94% decrease</b> compared to the previous month.</div></div></div>
+    <div class="ai-foot"><div class="input">Write a message...</div><button class="send">Send ↗</button></div>
+  </aside>
 </div>
-"""
-st.markdown(table_html, unsafe_allow_html=True)
 
-st.markdown("""
-<div class="bottom-cards">
-  <div class="small-card">
-    <div class="small-title">Profitability</div>
-    <div class="small-caption">Revenue, expense and net profit</div>
-    <div class="kpi"><span class="kpi-label">Revenue</span><span class="kpi-value">1,255.2</span></div>
-    <div class="kpi"><span class="kpi-label">Operating Expense</span><span class="kpi-value">556.1</span></div>
-    <div class="kpi"><span class="kpi-label">Net Profit</span><span class="kpi-value">699.1</span></div>
-  </div>
-  <div class="small-card">
-    <div class="small-title">Asset Quality</div>
-    <div class="small-caption">Risk indicators and coverage</div>
-    <div class="kpi"><span class="kpi-label">NPL Ratio</span><span class="kpi-value">4.20%</span></div>
-    <div class="kpi"><span class="kpi-label">CKPN Coverage</span><span class="kpi-value">115.93%</span></div>
-    <div class="kpi"><span class="kpi-label">Low Cost Funding</span><span class="kpi-value">77.40%</span></div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-st.markdown("</main>", unsafe_allow_html=True)
+<div class="mobile-head"><button id="mobileMenu" class="mobile-menu">☰</button><div class="mobile-brand"><span class="brand-mark">✦</span>FinAI</div><button id="mobileAI" class="mobile-ai">✦</button></div>
+<div id="mobileOverlay" class="mobile-overlay"></div>
+<button id="desktopAI" class="ai-launch hidden" aria-label="Open AI">✦</button>
 
-# AI panel
-st.markdown(f'<aside class="{ai_class}">', unsafe_allow_html=True)
-st.markdown("""
-<div class="ai-header">
-  <div>
-    <div class="ai-title">AI Assistant</div>
-    <div class="ai-status"><span class="ai-status-dot"></span>Ready to assist</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+<script>
+const app=document.getElementById('app'), left=document.getElementById('left'), ai=document.getElementById('ai');
+const leftToggle=document.getElementById('leftToggle'), aiClose=document.getElementById('aiClose'), desktopAI=document.getElementById('desktopAI'), mobileAI=document.getElementById('mobileAI'), mobileMenu=document.getElementById('mobileMenu'), overlay=document.getElementById('mobileOverlay');
+let leftCollapsed=false, aiOpen=true;
+function sync(){
+  app.classList.toggle('left-collapsed',leftCollapsed);
+  app.classList.toggle('ai-closed',!aiOpen);
+  leftToggle.textContent=leftCollapsed?'▶':'◀';
+  desktopAI.classList.toggle('hidden',aiOpen);
+  if(window.innerWidth<=800){
+    left.classList.toggle('mobile-open',left.classList.contains('mobile-open'));
+    overlay.classList.toggle('show',left.classList.contains('mobile-open'));
+  }
+}
+leftToggle.onclick=()=>{leftCollapsed=!leftCollapsed;sync()};
+aiClose.onclick=()=>{aiOpen=false;sync()};
+desktopAI.onclick=()=>{aiOpen=true;sync()};
+mobileAI.onclick=()=>{aiOpen=true;sync()};
+mobileMenu.onclick=()=>{left.classList.toggle('mobile-open');sync()};
+overlay.onclick=()=>{left.classList.remove('mobile-open');sync()};
+window.addEventListener('resize',sync);sync();
+</script>
+</body></html>
+'''
 
-# Real Streamlit close button, visually positioned with CSS via a small HTML overlay.
-if st.session_state.ai_open:
-    close_col = st.columns([8, 1])
-    with close_col[1]:
-        if st.button("×", key="ai_close"):
-            st.session_state.ai_open = False
-            st.rerun()
-
-st.markdown("""
-<div class="ai-body">
-  <div class="msg">
-    <div class="bot-icon">✦</div>
-    <div class="msg-text"><b>Hi there! 👋</b><br><span style="color:#9ba49f">I'm your Financial AI Assistant.<br>How can I help you today?</span></div>
-  </div>
-  <div class="msg user"><div class="user-bubble">Hello</div></div>
-  <div class="msg">
-    <div class="bot-icon">✦</div>
-    <div class="msg-text">Do you want to compare the current performance with the previous month?</div>
-  </div>
-  <div class="msg user"><div class="user-bubble">Yes, compare it with the previous month</div></div>
-  <div class="msg">
-    <div class="bot-icon">✦</div>
-    <div class="msg-text">You spent <b>699.1 net profit</b> this month versus <b>812.4</b> previous month. That's a <b>13.94% decrease</b> compared to the previous month.</div>
-  </div>
-</div>
-<div class="ai-footer">
-  <div class="ai-input">Write a message...</div>
-  <div class="ai-send">Send ↗</div>
-</div>
-""", unsafe_allow_html=True)
-st.markdown("</aside>", unsafe_allow_html=True)
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Header AI launcher appears only when panel is closed.
-if not st.session_state.ai_open:
-    st.markdown('<div class="ai-launch">✦</div>', unsafe_allow_html=True)
-    if st.button("✦", key="ai_open_desktop"):
-        st.session_state.ai_open = True
-        st.rerun()
+# A single self-contained component avoids Streamlit's HTML-block DOM nesting issues.
+components.html(HTML, height=1550, scrolling=False)
