@@ -30,6 +30,11 @@ OPENROUTER_API_KEY = get_api_key()
 # Free-first routing. If a specific free provider is rate-limited,
 # the app tries the next model and finally OpenRouter's free router.
 FREE_MODELS = [
+    # Finance-focused free model currently listed by OpenRouter.
+    "inclusionai/ling-3.0-flash-fin:free",
+    # Strong general free fallback.
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    # OpenRouter automatic free-model router as the final fallback.
     "openrouter/free",
 ]
 
@@ -72,10 +77,12 @@ def call_openrouter(messages, max_tokens=500):
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://demuy89.streamlit.app",
+        # Keep HTTP header value ASCII-only. Python/urllib3 otherwise can
+        # raise UnicodeEncodeError when sending non-Latin-1 characters.
         "X-Title": "FinAI - Financial Intelligence",
     }
 
-    last_error = None
+    errors = []
 
     for model in FREE_MODELS:
         try:
@@ -97,20 +104,24 @@ def call_openrouter(messages, max_tokens=500):
                 if choices:
                     answer = choices[0].get("message", {}).get("content")
                     if answer:
-                        return answer.strip()
-                last_error = f"Model {model} returned an empty response."
-            else:
-                try:
-                    err = response.json().get("error", {})
-                    error_message = err.get("message", response.text)
-                except Exception:
-                    error_message = response.text
-                last_error = f"Model {model} HTTP {response.status_code}: {error_message}"
+                        return str(answer).strip()
+                errors.append(f"{model}: empty response")
+                continue
+
+            try:
+                err = response.json().get("error", {})
+                message = err.get("message", response.text)
+            except Exception:
+                message = response.text
+
+            # Do not stop on a temporary free-model 404/429/5xx.
+            # Move to the next currently available free route.
+            errors.append(f"{model} HTTP {response.status_code}: {message}")
 
         except requests.RequestException as exc:
-            last_error = f"Model {model}: {exc}"
+            errors.append(f"{model}: {exc}")
 
-    return f"LLM API error: {last_error}"
+    return "LLM belum dapat merespons saat ini. Detail: " + " | ".join(errors[-3:])
 
 
 if "messages" not in st.session_state:
@@ -125,27 +136,32 @@ if "last_finai_query" not in st.session_state:
 if "ai_open" not in st.session_state:
     st.session_state.ai_open = False
 
-# Messages are now rendered INSIDE the AI overlay.
-# A small query-string bridge lets the iframe ask Python to call OpenRouter
-# without exposing the API key to browser JavaScript.
+# Messages are rendered inside the AI overlay. The iframe sends the user's
+# question through the page query string; Python processes it server-side so
+# the OpenRouter API key never reaches browser JavaScript.
 finai_query = st.query_params.get("finai_q")
 if finai_query:
     finai_query = str(finai_query).strip()
-    if finai_query and finai_query != st.session_state.last_finai_query:
-        st.session_state.last_finai_query = finai_query
+    if finai_query:
         st.session_state.ai_open = True
         st.session_state.messages.append({"role": "user", "content": finai_query})
+
         llm_messages = [
-            {"role":"system","content":SYSTEM_PROMPT},
-            {"role":"system","content":"Dashboard financial context:\n" + FINANCIAL_CONTEXT},
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": "Dashboard financial context:\n" + FINANCIAL_CONTEXT},
         ]
         llm_messages.extend(st.session_state.messages[-8:])
+
         answer = call_openrouter(llm_messages)
-        st.session_state.messages.append({"role":"assistant", "content":answer})
-    try:
-        st.query_params.clear()
-    except Exception:
-        pass
+        st.session_state.messages.append({"role": "assistant", "content": answer})
+
+        # Remove the one-shot query and rerun so the freshly generated answer
+        # is rendered immediately and the same question cannot be submitted twice.
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+        st.rerun()
 
 
 # ============================================================
@@ -163,7 +179,7 @@ HTML = r'''
 html,body{margin:0;padding:0;width:100%;background:#f4f7f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18211f}
 button{font:inherit;cursor:pointer}
 :root{--green:#005642;--green2:#08735d;--lime:#b7f51d;--bg:#f4f7f5;--line:#e7ece9;--muted:#8d9793}
-.app{position:relative;min-height:1000px;display:grid;grid-template-columns:250px minmax(0,1fr);background:var(--bg);overflow:hidden}
+.app{position:relative;min-height:0;display:grid;grid-template-columns:250px minmax(0,1fr);background:var(--bg);overflow:hidden}
 .app.left-collapsed{grid-template-columns:72px minmax(0,1fr)}
 .left{position:relative;background:var(--green);color:#fff;padding:18px 14px 18px;min-width:0;overflow:hidden}
 .sidebar-head{height:42px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 24px}
@@ -194,11 +210,11 @@ button{font:inherit;cursor:pointer}
 .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}.card{background:#fff;border:1px solid #edf0ef;border-radius:17px;box-shadow:0 7px 20px #1e41370b}.metric{padding:17px}.metric-label{color:#909b97;font-size:10px}.metric-value{font-size:22px;font-weight:800;margin-top:6px}.metric-change{color:#a78282;font-size:8px;margin-top:5px}
 .table-card{overflow:hidden}.table-head{display:flex;justify-content:space-between;align-items:center;padding:16px 17px 12px}.table-title{font-size:14px;font-weight:800}.caption{font-size:8px;color:#9ba5a1;margin-top:3px}.switcher{background:#f0f6df;color:#718044;border-radius:18px;padding:8px 12px;font-size:9px;font-weight:700}.data-wrap{overflow-x:auto}table{width:100%;min-width:680px;border-collapse:collapse;font-size:8px}th{color:#a1aaa7;font-weight:600;padding:8px 12px;text-align:right;border-top:1px solid var(--line)}th:first-child,td:first-child{text-align:left}td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef}tr.section td{background:#eef5ef;color:#64806f;font-size:9px;letter-spacing:1.5px;font-weight:800;text-align:left;padding:8px 12px}
 .bottom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.small{padding:16px}.small-title{font-size:12px;font-weight:800}.kpi{display:flex;justify-content:space-between;margin-top:15px;font-size:9px}.kpi-label{color:#68736f}.kpi-value{font-size:11px;font-weight:800}
-.ai{position:absolute;z-index:200;top:18px;right:0;bottom:18px;width:min(390px,42%);height:auto;background:#fff;border-left:1px solid #e2e9e5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:transform .24s ease,opacity .18s ease,visibility .24s ease}
+.ai{position:absolute;z-index:200;top:0;right:0;bottom:0;width:min(390px,42%);height:auto;background:#fff;border-left:1px solid #e2e9e5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:transform .24s ease,opacity .18s ease,visibility .24s ease}
 .ai.open{transform:translateX(0);opacity:1;visibility:visible}
-.ai-head{position:relative;z-index:2;flex:none;padding:18px 18px 15px;min-height:74px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{position:relative;z-index:3;flex:none;width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9ba49f}.ai-foot{padding:12px 18px 18px;border-top:1px solid #edf0ef}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}.ai-input:focus{border-color:#9bb8ae}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410d;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
+.ai-head{position:relative;z-index:2;flex:none;padding:14px 14px 12px;min-height:66px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{position:relative;z-index:3;flex:none;width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9ba49f}.ai-foot{padding:10px 14px 14px;border-top:1px solid #edf0ef}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}.ai-input:focus{border-color:#9bb8ae}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410d;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
 .mobile-head{display:none}
-.finai-root.mobile-view .app,.finai-root.mobile-view .app.left-collapsed{display:block;min-height:1000px;overflow:visible}
+.finai-root.mobile-view .app,.finai-root.mobile-view .app.left-collapsed{display:block;min-height:0;overflow:visible}
 .finai-root.mobile-view .left{position:fixed;z-index:300;inset:0 auto 0 0;width:min(82vw,320px);height:100dvh;transform:translateX(-105%);transition:transform .25s ease;box-shadow:12px 0 40px #0003;padding:18px 16px}
 .finai-root.mobile-view .left.mobile-open{transform:translateX(0)}
 .finai-root.mobile-view .main{padding:96px 18px 38px;overflow:visible}
@@ -209,7 +225,8 @@ button{font:inherit;cursor:pointer}
 .finai-root.mobile-view .mobile-ai{position:absolute;right:18px;top:16px;width:42px;height:42px;border-radius:50%;border:1px solid #e7ebe9;background:#fff;color:var(--green);font-size:17px}
 .finai-root.mobile-view .mobile-overlay{display:none;position:fixed;inset:0;z-index:280;background:#00302655}
 .finai-root.mobile-view .mobile-overlay.show{display:block}
-.finai-root.mobile-view .ai{position:fixed;z-index:500;inset:0;width:100vw;height:100dvh;min-height:100dvh;border:0;box-shadow:none}
+.finai-root.mobile-view .ai-head{padding-top:max(14px,env(safe-area-inset-top));min-height:70px}.finai-root.mobile-view .ai-body{padding-bottom:20px}.finai-root.mobile-view .ai-foot{padding-bottom:max(14px,env(safe-area-inset-bottom))}.finai-root.mobile-view .main{width:100%;max-width:100%;overflow-x:hidden}
+.finai-root.mobile-view .ai{position:fixed;z-index:500;top:0;right:0;bottom:0;left:0;width:100vw;height:100dvh;min-height:0;border:0;box-shadow:none}
 @media(max-width:800px){
  body{background:#f4f7f5}.app,.app.left-collapsed{display:block;min-height:100vh;overflow:visible}
  .left{position:fixed;z-index:300;inset:0 auto 0 0;width:min(78vw,320px);height:100dvh;transform:translateX(-105%);transition:transform .25s ease;box-shadow:12px 0 40px #0003;padding:18px 16px}
@@ -289,8 +306,9 @@ function sendMessage(){
   const text=aiInput.value.trim();
   if(!text || aiSend.disabled)return;
   aiSend.disabled=true;
-  const base=window.parent.location.pathname;
-  window.parent.location.href=base+'?finai_q='+encodeURIComponent(text);
+  const parent=window.parent;
+  const url=parent.location.origin+parent.location.pathname+'?finai_q='+encodeURIComponent(text);
+  parent.location.assign(url);
 }
 leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{setSidebarCollapsed(!leftCollapsed);}});
 aiClose.addEventListener('click',()=>setAI(false));
@@ -324,5 +342,5 @@ for m in st.session_state.messages:
 HTML = HTML.replace("__AI_MESSAGES__", "".join(message_blocks))
 HTML = HTML.replace("__AI_OPEN__", "true" if st.session_state.ai_open else "false")
 
-components.html(HTML, height=1550, scrolling=False)
+components.html(HTML, height=1120, scrolling=False)
 
