@@ -1,26 +1,27 @@
-# FinAI UI Prototype V1
+# FinAI UI Prototype — V3
 
-Frontend-first Streamlit prototype.
+This version keeps the current Streamlit Components V2 architecture while adopting the visual language of `app_fix_chat_v6.py`.
 
 ## Architecture
+- One Streamlit Components V2 component.
+- No nested iframe and no page-created component.
+- `index.html` is the shell only.
+- Sidebar, header and AI chat are separate layout fragments.
+- Dashboard pages are separate HTML fragments under `frontend/pages/`.
+- `app.py` owns session state and the chat event gateway.
+- `main.css` owns the visual system and responsive layout.
+- `app.js` owns navigation, responsive mode, sidebar and AI interactions.
 
-- `app.py` — Streamlit host only.
-- `finai_ui/frontend/index.html` — application shell.
-- `finai_ui/frontend/pages/*.html` — page fragments.
-- `finai_ui/frontend/layout/*.html` — persistent UI components.
-- `finai_ui/frontend/css/*.css` — styles.
-- `finai_ui/frontend/js/*.js` — navigation and UI behaviour.
-
-There is intentionally no LLM integration in V1.
+## Visual baseline
+- Deep green sidebar `#005642`.
+- Lime accent `#b7f51d`.
+- Soft financial dashboard background `#f4f7f5`.
+- Rounded white cards with subtle shadows.
+- Two-column KPI layout, matching the approved visual model.
+- AI assistant as a right-side desktop panel and full-screen mobile overlay.
 
 ## Run
-
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
-
-## Navigation
-
-The frontend uses one application shell and loads page fragments into `#main-content`.
-It does not create an iframe for every page and does not reload Streamlit for navigation.
