@@ -158,7 +158,9 @@ if finai_query:
         # Remove the one-shot query and rerun so the freshly generated answer
         # is rendered immediately and the same question cannot be submitted twice.
         try:
-            st.query_params.clear()
+            # Remove only the one-shot chat parameter.
+            if 'finai_q' in st.query_params:
+                del st.query_params['finai_q']
         except Exception:
             pass
         st.rerun()
@@ -306,9 +308,25 @@ function sendMessage(){
   const text=aiInput.value.trim();
   if(!text || aiSend.disabled)return;
   aiSend.disabled=true;
-  const parent=window.parent;
-  const url=parent.location.origin+parent.location.pathname+'?finai_q='+encodeURIComponent(text);
-  parent.location.assign(url);
+
+  // components.html runs inside an iframe. Direct parent.location navigation can
+  // be unreliable in Streamlit's component iframe, so submit a real top-level
+  // navigation instead. This is intentionally the only chat transport.
+  try {
+    const topWin = window.top;
+    const current = new URL(topWin.location.href);
+    current.searchParams.set('finai_q', text);
+    topWin.location.href = current.toString();
+  } catch (err) {
+    // Fallback: use a normal anchor click targeting the top-level document.
+    const a=document.createElement('a');
+    a.href='?finai_q='+encodeURIComponent(text);
+    a.target='_top';
+    a.rel='noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 }
 leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{setSidebarCollapsed(!leftCollapsed);}});
 aiClose.addEventListener('click',()=>setAI(false));
