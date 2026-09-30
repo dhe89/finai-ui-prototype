@@ -66,7 +66,7 @@ table{width:100%;min-width:680px;border-collapse:collapse;font-size:8px}th{color
 .brand{display:flex!important;align-items:center!important;gap:11px!important;font-size:20px!important;font-weight:800!important;white-space:nowrap!important}
 .brand-mark{width:40px!important;height:40px!important;border-radius:11px!important;background:var(--lime)!important;color:var(--green)!important;display:grid!important;place-items:center!important;flex:none!important}
 .brand-mark svg{width:25px!important;height:25px!important;fill:currentColor!important;display:block!important}
-.sidebar-toggle{display:none!important}
+
 .header-brand-mark{width:28px;height:28px;border-radius:8px;background:var(--lime);color:var(--green);display:inline-grid;place-items:center;flex:none}
 .header-brand-mark svg{width:18px;height:18px;fill:currentColor;display:block}
 .app-shell.sidebar-collapsed .sidebar-head{justify-content:center!important;margin-left:0!important;margin-right:0!important}
@@ -120,3 +120,119 @@ table{width:100%;min-width:680px;border-collapse:collapse;font-size:8px}th{color
   background:#f0f2f1!important;color:#3f4a46!important;z-index:99999!important;
 }
 
+
+/* ===== V3.2 layout/control fixes ===== */
+/* Keep the desktop hamburger in the sidebar only. */
+.sidebar-toggle{
+  display:grid!important;
+  place-items:center!important;
+  width:36px!important;
+  height:36px!important;
+  flex:none!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  border-radius:50%!important;
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+  font-size:18px!important;
+  line-height:1!important;
+  cursor:pointer!important;
+}
+.app-shell.sidebar-collapsed .sidebar-toggle{
+  position:absolute!important;
+  top:28px!important;
+  right:10px!important;
+  width:32px!important;
+  height:32px!important;
+  border-radius:50%!important;
+}
+/* Lime FinAI mark: do not let inherited SVG/text colours override it. */
+.brand-mark,.header-brand-mark{
+  background:#B8F51A!important;
+  color:#005642!important;
+}
+.brand-mark svg,.header-brand-mark svg{
+  fill:#005642!important;
+  color:#005642!important;
+}
+
+/* Desktop/landscape: one viewport-sized application, with page content scrolling inside. */
+.finai-root{
+  height:100vh!important;
+  min-height:560px!important;
+  max-height:100vh!important;
+  overflow:hidden!important;
+}
+.app-shell{
+  height:100%!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+.sidebar-slot,.sidebar-inner{height:100%!important;min-height:0!important}
+.main-shell{
+  height:100%!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  display:flex!important;
+  flex-direction:column!important;
+}
+.header-slot{flex:none!important}
+.main-content{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+.ai-slot{height:100%!important;min-height:0!important}
+.ai-panel{height:100%!important;min-height:0!important}
+
+/* Mobile: same viewport principle; only the content area scrolls. */
+.is-mobile .finai-root{height:100dvh!important;min-height:0!important;max-height:100dvh!important}
+.is-mobile .app-shell{height:100%!important;min-height:0!important;overflow:hidden!important}
+.is-mobile .main-shell{height:100%!important;min-height:0!important;overflow:hidden!important}
+.is-mobile .main-content{height:auto!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important}
+
+/* Mobile sidebar keeps its lime logo and its hamburger is the same control used to close it. */
+.is-mobile .sidebar-toggle{
+  display:grid!important;
+  position:absolute!important;
+  top:28px!important;
+  right:14px!important;
+  width:38px!important;
+  height:38px!important;
+  border-radius:50%!important;
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+}
+.is-mobile .sidebar-head{padding-right:48px!important}
+
+/* Mobile AI: visible close control, always above the header/body. */
+.is-mobile .ai-panel{overflow:hidden!important}
+.is-mobile .ai-head{z-index:20!important}
+.is-mobile .ai-close{
+  display:grid!important;
+  position:absolute!important;
+  top:max(14px,env(safe-area-inset-top))!important;
+  right:14px!important;
+  z-index:999999!important;
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  min-height:42px!important;
+  border:1px solid #dfe5e2!important;
+  border-radius:50%!important;
+  background:#f0f2f1!important;
+  color:#26332f!important;
+  font-size:25px!important;
+  line-height:1!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+
+/* Mobile closed state: keep a slim sidebar rail so the only navigation hamburger
+   remains physically attached to the sidebar (no header hamburger). */
+.is-mobile .sidebar-slot{
+  width:min(82vw,320px)!important;
+  transform:translateX(calc(-100% + 56px))!important;
+}
+.is-mobile.mobile-sidebar-open .sidebar-slot{transform:translateX(0)!important}
+.is-mobile .sidebar-slot .sidebar-toggle{right:10px!important}
