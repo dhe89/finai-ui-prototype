@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import requests
 import html
 import urllib.parse
+import json
 
 st.set_page_config(
     page_title="FinAI — Financial Intelligence",
@@ -30,12 +31,12 @@ OPENROUTER_API_KEY = get_api_key()
 # Free-first routing. If a specific free provider is rate-limited,
 # the app tries the next model and finally OpenRouter's free router.
 FREE_MODELS = [
-    # OpenRouter's official free router dynamically selects an available
-    # free model. Avoid hard-coding a model that may later leave the free tier.
-    "openrouter/free",
-    # Explicit free fallbacks currently listed by OpenRouter.
+    # Use a currently verified free finance model first.
     "inclusionai/ling-3.0-flash-fin:free",
-    "nvidia/nemotron-3-ultra-253b-v1:free",
+    # Current OpenRouter slug for NVIDIA Nemotron 3 Ultra (free).
+    "nvidia/nemotron-3-ultra-550b-a55b-20260604:free",
+    # Official dynamic free router as the final fallback.
+    "openrouter/free",
 ]
 
 SYSTEM_PROMPT = (
@@ -102,12 +103,20 @@ def call_openrouter(messages, max_tokens=500):
                 data = response.json()
                 choices = data.get("choices", [])
                 if choices:
-                    answer = choices[0].get("message", {}).get("content")
+                    message = choices[0].get("message", {}) or {}
+                    answer = message.get("content")
                     if isinstance(answer, list):
                         answer = "".join(
                             str(part.get("text", "")) if isinstance(part, dict) else str(part)
                             for part in answer
                         )
+                    # Some reasoning-capable responses may expose text in
+                    # another message field. Accept it instead of treating
+                    # the successful API response as empty.
+                    if not answer:
+                        answer = message.get("reasoning") or choices[0].get("text")
+                    if isinstance(answer, list):
+                        answer = "".join(str(x) for x in answer)
                     if answer:
                         return str(answer).strip()
                 errors.append(f"{model}: empty response")
@@ -335,6 +344,54 @@ function addThinkingBubble(){
   return row;
 }
 
+const CHAT_KEY='finai_chat_history_v1';
+const SERVER_MESSAGES=__SERVER_MESSAGES_JSON__;
+
+function readLocalHistory(){
+  try{
+    const raw=localStorage.getItem(CHAT_KEY);
+    const parsed=raw?JSON.parse(raw):[];
+    return Array.isArray(parsed)?parsed:[];
+  }catch(e){return [];}
+}
+function writeLocalHistory(messages){
+  try{localStorage.setItem(CHAT_KEY,JSON.stringify(messages.slice(-30)));}catch(e){}
+}
+function mergeHistory(localMsgs, serverMsgs){
+  const merged=[...localMsgs];
+  for(const m of (serverMsgs||[])){
+    if(!m || !m.role) continue;
+    const exists=merged.some(x=>x && x.role===m.role && x.content===m.content);
+    if(!exists) merged.push(m);
+  }
+  return merged.slice(-30);
+}
+function renderMessageList(messages){
+  const greeting=`<div class="msg"><div class="bot">✦</div><div class="msgtext"><b>Hi there! 👋</b><br><span class="muted">I'm your Financial AI Assistant.<br>Ask me about the dashboard performance.</span></div></div>`;
+  aiBody.innerHTML=greeting;
+  for(const m of messages){
+    if(!m || !m.role || !m.content) continue;
+    const row=document.createElement('div');
+    row.className='msg'+(m.role==='user'?' user':'');
+    if(m.role==='user'){
+      const bubble=document.createElement('div');
+      bubble.className='bubble';
+      bubble.textContent=String(m.content);
+      row.appendChild(bubble);
+    }else{
+      row.innerHTML='<div class="bot">✦</div><div class="msgtext"></div>';
+      row.querySelector('.msgtext').textContent=String(m.content);
+    }
+    aiBody.appendChild(row);
+  }
+  aiBody.scrollTop=aiBody.scrollHeight;
+}
+function hydrateHistory(){
+  const merged=mergeHistory(readLocalHistory(),SERVER_MESSAGES);
+  writeLocalHistory(merged);
+  renderMessageList(merged);
+}
+
 function sendMessage(){
   const text=aiInput.value.trim();
   if(!text || aiSend.disabled)return;
@@ -347,17 +404,20 @@ function sendMessage(){
   aiInput.value='';
   addLocalUserBubble(text);
   addThinkingBubble();
+  const current=mergeHistory(readLocalHistory(),[{role:'user',content:text}]);
+  writeLocalHistory(current);
 
   const nonce=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
   const target=window.location.origin+'/?finai_q='+encodeURIComponent(text)+'&finai_n='+encodeURIComponent(nonce);
 
   try {
-    // Parent is the Streamlit app document. Use a direct, synchronous
-    // navigation while the user activation is still present.
-    window.parent.location.href=target;
+    // IMPORTANT: components.html runs inside a Streamlit iframe. Navigating
+    // window.parent can navigate the component frame itself and create nested
+    // copies of the app. Always navigate the real top-level Streamlit page.
+    window.top.location.assign(target);
   } catch(e) {
-    try { window.top.location.href=target; }
-    catch(_) { window.location.href=target; }
+    // Last-resort fallback for restrictive browsers.
+    window.location.assign(target);
   }
 }
 
@@ -372,6 +432,7 @@ aiInput.addEventListener('keydown',e=>{if(e.key==='Enter')sendMessage();});
 window.addEventListener('resize',syncResponsive);
 window.addEventListener('orientationchange',syncResponsive);
 setSidebarCollapsed(false);
+hydrateHistory();
 setAI(__AI_OPEN__);
 syncResponsive();
 </script>
@@ -379,18 +440,13 @@ syncResponsive();
 </html>
 '''
 
-# Build chat bubbles server-side so the entire chat remains inside the overlay.
-message_blocks = []
-message_blocks.append("<div class='msg'><div class='bot'>✦</div><div class='msgtext'><b>Hi there! 👋</b><br><span class='muted'>I'm your Financial AI Assistant.<br>Ask me about the dashboard performance.</span></div></div>")
-for m in st.session_state.messages:
-    role = m.get("role")
-    content = html.escape(str(m.get("content", ""))).replace("\n", "<br>")
-    if role == "user":
-        message_blocks.append(f'<div class="msg user"><div class="bubble">{content}</div></div>')
-    elif role == "assistant":
-        message_blocks.append(f'<div class="msg"><div class="bot">✦</div><div class="msgtext">{content}</div></div>')
-
-HTML = HTML.replace("__AI_MESSAGES__", "".join(message_blocks))
+# Chat history is hydrated client-side from localStorage plus the current
+# Streamlit session. This prevents history loss when the top-level page must
+# reload to deliver a message to Python.
+message_blocks = "<div class='msg'><div class='bot'>✦</div><div class='msgtext'><b>Hi there! 👋</b><br><span class='muted'>I'm your Financial AI Assistant.<br>Ask me about the dashboard performance.</span></div></div>"
+server_messages_json = json.dumps(st.session_state.messages, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+HTML = HTML.replace("__AI_MESSAGES__", message_blocks)
+HTML = HTML.replace("__SERVER_MESSAGES_JSON__", server_messages_json)
 HTML = HTML.replace("__AI_OPEN__", "true" if st.session_state.ai_open else "false")
 
 components.html(HTML, height=1120, scrolling=False)
