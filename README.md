@@ -1,12 +1,26 @@
-# FinAI — Overlay LLM Integration v2
+# FinAI UI Prototype V1
 
-Built directly from `finai_streamlit_overlay_v1`. The dashboard/sidebar/overlay visual baseline is preserved.
+Frontend-first Streamlit prototype.
 
-This version uses Streamlit Custom Components v2 for bidirectional communication so chat stays inside the existing AI overlay.
+## Architecture
 
-## Secret
-`OPENROUTER_API_KEY = "sk-or-v1-..."` in Streamlit Secrets.
+- `app.py` — Streamlit host only.
+- `finai_ui/frontend/index.html` — application shell.
+- `finai_ui/frontend/pages/*.html` — page fragments.
+- `finai_ui/frontend/layout/*.html` — persistent UI components.
+- `finai_ui/frontend/css/*.css` — styles.
+- `finai_ui/frontend/js/*.js` — navigation and UI behaviour.
 
-## Models
-Primary: `google/gemma-3-12b-it:free`
-Fallback on HTTP 429: `qwen/qwen3-4b:free`
+There is intentionally no LLM integration in V1.
+
+## Run
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+## Navigation
+
+The frontend uses one application shell and loads page fragments into `#main-content`.
+It does not create an iframe for every page and does not reload Streamlit for navigation.
