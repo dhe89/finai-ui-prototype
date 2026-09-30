@@ -130,7 +130,6 @@ export default function(component) {
         closeMobileSidebar();
         return;
       }
-      if (event.target.closest('#sidebar-toggle')) { toggleSidebar(); return; }
       if (event.target.closest('#desktop-menu-button')) { toggleSidebar(); return; }
       if (event.target.closest('#mobile-menu-button')) { toggleSidebar(); return; }
       if (event.target.closest('#desktop-ai-button')) { setAI(true); return; }
@@ -141,6 +140,10 @@ export default function(component) {
     });
 
     root.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        if (state.aiOpen) { setAI(false); return; }
+        if (state.mobileSidebarOpen) { closeMobileSidebar(); return; }
+      }
       if (event.target?.id === 'ai-input' && event.key === 'Enter') {
         event.preventDefault();
         sendMessage();
