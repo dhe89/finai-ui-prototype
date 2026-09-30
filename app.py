@@ -79,7 +79,7 @@ finai_component = components.component(
 finai_component(
     key="finai_main",
     width="stretch",
-    height=1250,
+    height="content",
     data={
         "sidebar_html": sidebar_html,
         "header_html": header_html,
