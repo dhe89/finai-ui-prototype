@@ -1,174 +1,158 @@
-const root = document.getElementById("finai-root");
-const sidebarSlot = document.getElementById("sidebar-slot");
-const headerSlot = document.getElementById("header-slot");
-const mainContent = document.getElementById("main-content");
-const aiSlot = document.getElementById("ai-slot");
-const mobileOverlay = document.getElementById("mobile-overlay");
+export default function(component) {
+  const { parentElement, data, setTriggerValue } = component;
+  const root = parentElement.querySelector('#finai-root');
+  if (!root) return;
 
-const state = {
-  page: "kinerja",
-  sidebarCollapsed: false,
-  mobileSidebarOpen: false,
-  aiOpen: false
-};
+  const sidebarSlot = root.querySelector('#sidebar-slot');
+  const headerSlot = root.querySelector('#header-slot');
+  const mainContent = root.querySelector('#main-content');
+  const aiSlot = root.querySelector('#ai-slot');
+  const overlay = root.querySelector('#mobile-overlay');
 
-async function loadText(path) {
-  const response = await fetch(path);
-  if (!response.ok) throw new Error(`Unable to load ${path}: ${response.status}`);
-  return response.text();
-}
+  const pages = data?.pages || {};
+  const history = Array.isArray(data?.chat_history) ? data.chat_history : [];
+  const responseVersion = data?.response_version || 0;
 
-async function loadLayout() {
-  sidebarSlot.innerHTML = await loadText("layout/sidebar.html");
-  headerSlot.innerHTML = await loadText("layout/header.html");
-  aiSlot.innerHTML = await loadText("layout/ai_chat.html");
-  bindLayoutEvents();
-}
-
-async function loadPage(page) {
-  const allowed = ["kinerja", "financial_report", "data_detail", "setting"];
-  if (!allowed.includes(page)) page = "kinerja";
-
-  state.page = page;
-  mainContent.classList.add("loading-page");
-
-  try {
-    mainContent.innerHTML = await loadText(`pages/${page}.html`);
-    document.querySelectorAll(".nav-item").forEach(item => {
-      item.classList.toggle("active", item.dataset.page === page);
-    });
-  } catch (error) {
-    mainContent.innerHTML = `
-      <section class="page">
-        <div class="card error-card">
-          <b>Page gagal dimuat</b>
-          <div>${escapeHtml(error.message)}</div>
-        </div>
-      </section>`;
-  } finally {
-    mainContent.classList.remove("loading-page");
+  // Render static layout once. Never create another component/iframe here.
+  if (!sidebarSlot.dataset.ready) {
+    sidebarSlot.innerHTML = data?.sidebar_html || '';
+    headerSlot.innerHTML = data?.header_html || '';
+    aiSlot.innerHTML = data?.ai_html || '';
+    sidebarSlot.dataset.ready = '1';
   }
-}
 
-function bindLayoutEvents() {
-  document.getElementById("sidebar-toggle").addEventListener("click", toggleSidebar);
-  document.getElementById("mobile-menu-button").addEventListener("click", toggleMobileSidebar);
-  document.getElementById("desktop-ai-button").addEventListener("click", () => setAI(true));
-  document.getElementById("mobile-ai-button").addEventListener("click", () => setAI(true));
-  document.getElementById("ai-close").addEventListener("click", () => setAI(false));
-
-  document.querySelectorAll(".nav-item").forEach(item => {
-    item.addEventListener("click", () => {
-      loadPage(item.dataset.page);
-      if (window.innerWidth <= 800) closeMobileSidebar();
-    });
+  const state = window.__finaiState || (window.__finaiState = {
+    page: 'kinerja',
+    sidebarCollapsed: false,
+    mobileSidebarOpen: false,
+    aiOpen: false,
+    lastResponseVersion: -1,
+    handlersBound: false,
   });
 
-  document.getElementById("ai-send").addEventListener("click", sendDemoMessage);
-  document.getElementById("ai-input").addEventListener("keydown", event => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      sendDemoMessage();
-    }
-  });
-
-  mobileOverlay.addEventListener("click", closeMobileSidebar);
-}
-
-function toggleSidebar() {
-  if (window.innerWidth <= 800) {
-    toggleMobileSidebar();
-    return;
+  function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    }[ch]));
   }
-  state.sidebarCollapsed = !state.sidebarCollapsed;
-  root.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
-}
 
-function toggleMobileSidebar() {
-  state.mobileSidebarOpen = !state.mobileSidebarOpen;
-  root.classList.toggle("mobile-sidebar-open", state.mobileSidebarOpen);
-}
-
-function closeMobileSidebar() {
-  state.mobileSidebarOpen = false;
-  root.classList.remove("mobile-sidebar-open");
-}
-
-function setAI(open) {
-  state.aiOpen = open;
-  root.classList.toggle("ai-open", open);
-}
-
-function sendDemoMessage() {
-  const input = document.getElementById("ai-input");
-  const body = document.getElementById("ai-body");
-  const text = input.value.trim();
-  if (!text) return;
-
-  body.insertAdjacentHTML("beforeend", `
-    <div class="msg user">
-      <div class="bubble">${escapeHtml(text)}</div>
-    </div>
-  `);
-
-  input.value = "";
-
-  const thinkingId = `thinking-${Date.now()}`;
-  body.insertAdjacentHTML("beforeend", `
-    <div class="msg" id="${thinkingId}">
-      <div class="bot">✦</div>
-      <div class="msgtext thinking">
-        <span>FinAI sedang menganalisis</span>
-        <span class="thinking-dots"><i></i><i></i><i></i></span>
-      </div>
-    </div>
-  `);
-
-  body.scrollTop = body.scrollHeight;
-
-  setTimeout(() => {
-    const thinking = document.getElementById(thinkingId);
-    if (thinking) {
-      thinking.outerHTML = `
-        <div class="msg">
-          <div class="bot">✦</div>
-          <div class="msgtext">
-            Untuk prototype UI, pesan sudah diterima. Integrasi LLM akan kita pasang pada tahap berikutnya.
-          </div>
-        </div>
-      `;
-      body.scrollTop = body.scrollHeight;
-    }
-  }, 900);
-}
-
-function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  }[char]));
-}
-
-async function init() {
-  try {
-    await loadLayout();
-    await loadPage(state.page);
-  } catch (error) {
-    mainContent.innerHTML = `
-      <section class="page">
-        <div class="card error-card">
-          <b>FinAI gagal diinisialisasi</b>
-          <div>${escapeHtml(error.message)}</div>
-        </div>
-      </section>`;
+  function renderPage(page) {
+    if (!pages[page]) page = 'kinerja';
+    state.page = page;
+    mainContent.innerHTML = pages[page] || '<div class="card error-card">Halaman tidak tersedia.</div>';
+    root.querySelectorAll('.nav-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.page === page);
+    });
   }
+
+  function renderHistory() {
+    const body = root.querySelector('#ai-body');
+    if (!body) return;
+    let html = `
+      <div class="msg">
+        <div class="bot">✦</div>
+        <div class="msgtext"><b>Hi there! 👋</b><br><span class="muted">I'm your Financial AI Assistant.<br>Ask me about the dashboard.</span></div>
+      </div>`;
+
+    for (const item of history) {
+      if (item.role === 'user') {
+        html += `<div class="msg user"><div class="bubble">${esc(item.content)}</div></div>`;
+      } else if (item.role === 'assistant') {
+        html += `<div class="msg"><div class="bot">✦</div><div class="msgtext">${formatText(item.content)}</div></div>`;
+      }
+    }
+    body.innerHTML = html;
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function formatText(text) {
+    // Safe, lightweight formatting for the prototype. No innerHTML from user text.
+    return esc(text).replace(/\n/g, '<br>');
+  }
+
+  function setAI(open) {
+    state.aiOpen = open;
+    root.classList.toggle('ai-open', open);
+    const panel = root.querySelector('.ai-panel');
+    if (panel) panel.setAttribute('aria-hidden', String(!open));
+    if (open) setTimeout(() => root.querySelector('#ai-input')?.focus(), 50);
+  }
+
+  function toggleSidebar() {
+    if (window.innerWidth <= 800) {
+      state.mobileSidebarOpen = !state.mobileSidebarOpen;
+      root.classList.toggle('mobile-sidebar-open', state.mobileSidebarOpen);
+      return;
+    }
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    root.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+  }
+
+  function closeMobileSidebar() {
+    state.mobileSidebarOpen = false;
+    root.classList.remove('mobile-sidebar-open');
+  }
+
+  function sendMessage() {
+    const input = root.querySelector('#ai-input');
+    const text = input?.value?.trim();
+    if (!text) return;
+    input.value = '';
+    input.disabled = true;
+    const send = root.querySelector('#ai-send');
+    if (send) send.disabled = true;
+
+    // One event -> one Streamlit rerun -> Python updates chat_history.
+    setTriggerValue('chat_submit', {
+      message: text,
+      page: state.page,
+      ts: Date.now(),
+    });
+  }
+
+  if (!state.handlersBound) {
+    state.handlersBound = true;
+
+    root.addEventListener('click', (event) => {
+      const nav = event.target.closest('.nav-item');
+      if (nav) {
+        renderPage(nav.dataset.page);
+        closeMobileSidebar();
+        return;
+      }
+      if (event.target.closest('#sidebar-toggle')) { toggleSidebar(); return; }
+      if (event.target.closest('#mobile-menu-button')) { toggleSidebar(); return; }
+      if (event.target.closest('#desktop-ai-button')) { setAI(true); return; }
+      if (event.target.closest('#mobile-ai-button')) { setAI(true); return; }
+      if (event.target.closest('#ai-close')) { setAI(false); return; }
+      if (event.target.closest('#ai-send')) { sendMessage(); return; }
+      if (event.target === overlay) { closeMobileSidebar(); }
+    });
+
+    root.addEventListener('keydown', (event) => {
+      if (event.target?.id === 'ai-input' && event.key === 'Enter') {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 800) closeMobileSidebar();
+    });
+  }
+
+  // If Python reran, keep the same component instance and only refresh data-driven content.
+  if (state.lastResponseVersion !== responseVersion) {
+    state.lastResponseVersion = responseVersion;
+    renderHistory();
+    const input = root.querySelector('#ai-input');
+    const send = root.querySelector('#ai-send');
+    if (input) input.disabled = false;
+    if (send) send.disabled = false;
+  }
+
+  renderPage(state.page);
+  root.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+  root.classList.toggle('mobile-sidebar-open', state.mobileSidebarOpen);
+  root.classList.toggle('ai-open', state.aiOpen);
 }
-
-window.addEventListener("resize", () => {
-  if (window.innerWidth > 800) closeMobileSidebar();
-});
-
-init();
