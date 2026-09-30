@@ -238,6 +238,7 @@ button{font:inherit;cursor:pointer}
  .ai{z-index:500;inset:0;width:100vw;height:100dvh;border:0;box-shadow:none}.mobile-overlay{display:none;position:fixed;inset:0;z-index:280;background:#00302655}.mobile-overlay.show{display:block}
 }
 @media(min-width:801px){.mobile-head,.mobile-overlay{display:none}}
+.ai-thinking .msgtext{display:flex;align-items:center;gap:7px;color:#6f7b76}.thinking-label{font-size:12px}.thinking-dots{display:inline-flex;gap:3px;align-items:center}.thinking-dots i{width:4px;height:4px;border-radius:50%;background:#0b765f;animation:finaiDot 1.1s infinite ease-in-out}.thinking-dots i:nth-child(2){animation-delay:.15s}.thinking-dots i:nth-child(3){animation-delay:.3s}@keyframes finaiDot{0%,70%,100%{opacity:.25;transform:translateY(0)}35%{opacity:1;transform:translateY(-2px)}}
 </style>
 </head>
 <body>
@@ -304,29 +305,60 @@ function syncMobileClass(){root.classList.toggle('mobile-view',isMobile());}
 function setAI(open){ai.classList.toggle('open',!!open);ai.setAttribute('aria-hidden',String(!open));if(open){setTimeout(()=>aiInput.focus(),250);}}
 function setSidebarCollapsed(collapsed){leftCollapsed=!!collapsed;app.classList.toggle('left-collapsed',leftCollapsed);leftToggle.textContent='☰';}
 function syncResponsive(){syncMobileClass();if(isMobile()){app.classList.remove('left-collapsed');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{left.classList.remove('mobile-open');overlay.classList.remove('show');}}
+function addLocalUserBubble(text){
+  const row=document.createElement('div');
+  row.className='msg user local-pending';
+  row.innerHTML='<div class="bubble"></div>';
+  row.querySelector('.bubble').textContent=text;
+  aiBody.appendChild(row);
+  aiBody.scrollTop=aiBody.scrollHeight;
+}
+
+function addThinkingBubble(){
+  const row=document.createElement('div');
+  row.className='msg ai-thinking';
+  row.innerHTML='<div class="bot">✦</div><div class="msgtext"><span class="thinking-label">FinAI sedang menganalisis</span><span class="thinking-dots"><i></i><i></i><i></i></span></div>';
+  aiBody.appendChild(row);
+  aiBody.scrollTop=aiBody.scrollHeight;
+  return row;
+}
+
 function sendMessage(){
   const text=aiInput.value.trim();
   if(!text || aiSend.disabled)return;
-  aiSend.disabled=true;
 
-  // components.html runs inside an iframe. Direct parent.location navigation can
-  // be unreliable in Streamlit's component iframe, so submit a real top-level
-  // navigation instead. This is intentionally the only chat transport.
-  try {
-    const topWin = window.top;
-    const current = new URL(topWin.location.href);
-    current.searchParams.set('finai_q', text);
-    topWin.location.href = current.toString();
-  } catch (err) {
-    // Fallback: use a normal anchor click targeting the top-level document.
+  // Immediate visual acknowledgement: the user message appears first,
+  // followed by a processing indicator. The server navigation happens after
+  // this paint so the user can see that the message was accepted.
+  aiSend.disabled=true;
+  aiInput.disabled=true;
+  addLocalUserBubble(text);
+  const thinking=addThinkingBubble();
+  aiInput.value='';
+
+  setTimeout(()=>{
+    // Remove the temporary thinking bubble only when the page is about to
+    // navigate; the Streamlit rerun will rebuild the permanent history.
+    if(thinking && thinking.parentNode) thinking.parentNode.removeChild(thinking);
+
+    const encoded=encodeURIComponent(text);
+    const target='/?finai_q='+encoded;
+
+    // Use a real top-level anchor navigation. This is more reliable from a
+    // Streamlit HTML component iframe than assigning parent.location manually.
     const a=document.createElement('a');
-    a.href='?finai_q='+encodeURIComponent(text);
+    a.href=target;
     a.target='_top';
     a.rel='noopener';
+    a.style.display='none';
     document.body.appendChild(a);
     a.click();
-    a.remove();
-  }
+
+    // Last fallback for environments that block synthetic anchor clicks.
+    setTimeout(()=>{
+      try { window.top.location.href=target; } catch(e) {}
+    },120);
+  },180);
 }
 leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{setSidebarCollapsed(!leftCollapsed);}});
 aiClose.addEventListener('click',()=>setAI(false));
