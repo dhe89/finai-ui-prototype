@@ -4,10 +4,10 @@ button,input{font:inherit}
 button{cursor:pointer}
 :root{--green:#005642;--green2:#08735d;--lime:#b7f51d;--bg:#f4f7f5;--line:#e7ece9;--muted:#8d9793}
 
-.finai-root{width:100%;min-height:100vh}
-.app-shell{position:relative;display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh;background:var(--bg);overflow:hidden}
+.finai-root{width:100%;min-height:100dvh;background:var(--bg)}
+.app-shell{position:relative;display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100dvh;background:var(--bg);overflow:visible}
 .sidebar-slot{min-width:0;background:var(--green);color:#fff}
-.sidebar-inner{height:100%;position:relative;padding:18px 14px}
+.sidebar-inner{min-height:100dvh;position:relative;padding:18px 14px}
 .sidebar-head{height:42px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 24px}
 .brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;white-space:nowrap}
 .brand-mark{width:30px;height:30px;border-radius:9px;background:var(--lime);color:var(--green);display:grid;place-items:center;font-weight:900;flex:none}
@@ -22,13 +22,13 @@ button{cursor:pointer}
 .status{margin-top:8px;color:#d2e7e1;font-size:9px;letter-spacing:0}
 .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--lime);margin-right:5px}
 
-.main-shell{min-width:0;overflow:hidden}
+.main-shell{min-width:0;overflow:visible}
 .header-slot{padding:28px clamp(20px,3vw,44px) 0}
 .desktop-header{height:42px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .desktop-app-name{font-size:13px;font-weight:800;color:#65716c}
 .round-button{width:40px;height:40px;border-radius:50%;border:1px solid #e4e9e6;background:#fff;color:var(--green);box-shadow:0 4px 12px #0000000d;font-size:18px}
 .mobile-header{display:none}
-.main-content{padding:0 clamp(20px,3vw,44px) 44px;min-width:0;overflow:auto}
+.main-content{padding:0 clamp(20px,3vw,44px) 44px;min-width:0;overflow:visible}
 .page{min-width:0}
 .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px}
 .eyebrow{color:#a0aaa6;font-size:9px;letter-spacing:2px;font-weight:700}
@@ -64,7 +64,8 @@ td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef
 .error-card{padding:20px;color:#8c4b4b;font-size:11px}
 .loading-page{opacity:.65}
 
-.ai-slot{position:absolute;z-index:200;top:0;right:0;bottom:0;width:min(390px,42%);pointer-events:none}
+/* Desktop AI: fixed to the visible viewport, not to the page's full content height. */
+.ai-slot{position:fixed;z-index:700;top:0;right:0;bottom:0;width:min(390px,42vw);height:100dvh;pointer-events:none}
 .ai-panel{position:absolute;top:0;right:0;width:100%;height:100%;background:#fff;border-left:1px solid #e2e9e5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:.24s ease}
 .ai-open .ai-panel{transform:translateX(0);opacity:1;visibility:visible}
 .ai-open .ai-slot{pointer-events:auto}
@@ -72,14 +73,14 @@ td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef
 .ai-title{font-size:16px;font-weight:800}
 .ai-status{color:#9ba49f;font-size:8px;margin-top:5px}
 .ai-close{width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center;cursor:pointer}
-.ai-body{padding:22px 18px;overflow:auto;flex:1}
+.ai-body{padding:22px 18px;overflow:auto;flex:1;min-height:0}
 .msg{display:flex;gap:10px;margin-bottom:22px}
 .msg.user{justify-content:flex-end;padding-left:28px}
 .bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}
 .msgtext{font-size:11px;line-height:1.45;max-width:280px}
 .muted{color:#9ba49f}
 .bubble{display:block;max-width:min(82%,300px);padding:10px 13px;border-radius:14px 14px 4px 14px;background:#005642;color:#fff;font-size:11px;line-height:1.45;word-break:break-word}
-.ai-foot{padding:10px 14px 14px;border-top:1px solid #edf0ef}
+.ai-foot{flex:none;padding:10px 14px 14px;border-top:1px solid #edf0ef}
 .ai-input-row{display:flex;gap:8px}
 .ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}
 .ai-input:focus{border-color:#9bb8ae}
@@ -97,32 +98,36 @@ td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef
 .sidebar-collapsed .brand{justify-content:center}
 .sidebar-collapsed .sidebar-toggle{position:absolute;top:22px;right:7px;width:26px;height:26px;border-radius:8px;font-size:15px}
 .sidebar-collapsed .nav-item{justify-content:center;padding:0}
-
 .mobile-overlay{display:none}
 
-@media(max-width:800px){
-  .app-shell{display:block;min-height:100vh;overflow:visible}
-  .sidebar-slot{position:fixed;z-index:600;top:0;bottom:0;left:0;width:min(82vw,320px);transform:translateX(-105%);transition:.25s ease;box-shadow:12px 0 40px #0003}
-  .mobile-sidebar-open .sidebar-slot{transform:translateX(0)}
-  .main-shell{min-height:100vh}
-  .header-slot{padding:0}
-  .desktop-header{display:none}
-  .mobile-header{display:flex;position:fixed;z-index:500;top:0;left:0;right:0;height:74px;background:#fff;border-bottom:1px solid #edf0ef;align-items:center;justify-content:center}
-  .mobile-header .round-button{position:absolute}
-  #mobile-menu-button{left:18px}
-  #mobile-ai-button{right:18px}
-  .mobile-brand{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800}
-  .main-content{padding:96px 18px 38px;overflow:visible}
-  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .bottom-grid{grid-template-columns:1fr}
-  .topbar{margin-bottom:20px}
-  h1{font-size:29px}
-  .ai-slot{position:fixed;z-index:700;inset:0;width:100vw;height:100dvh;pointer-events:none}
-  .ai-panel{width:100vw;height:100dvh;border:0;box-shadow:none}
-  .mobile-overlay{display:none;position:fixed;z-index:550;inset:0;background:#00302655}
-  .mobile-sidebar-open .mobile-overlay{display:block}
-}
+/* Component-width based responsive mode. This is more reliable than viewport media queries
+   because Streamlit can render the V2 component inside a wrapper whose width differs from the device viewport. */
+.is-mobile .app-shell{display:block;min-height:100dvh;overflow:visible}
+.is-mobile .sidebar-slot{position:fixed;z-index:800;top:0;bottom:0;left:0;width:min(82vw,320px);min-height:100dvh;transform:translateX(-105%);transition:.25s ease;box-shadow:12px 0 40px #0003}
+.is-mobile.mobile-sidebar-open .sidebar-slot{transform:translateX(0)}
+.is-mobile .main-shell{min-height:100dvh}
+.is-mobile .header-slot{padding:0}
+.is-mobile .desktop-header{display:none}
+.is-mobile .mobile-header{display:flex;position:sticky;z-index:500;top:0;left:0;right:0;height:74px;background:#fff;border-bottom:1px solid #edf0ef;align-items:center;justify-content:center}
+.is-mobile .mobile-header .round-button{position:absolute}
+.is-mobile #mobile-menu-button{left:18px}
+.is-mobile #mobile-ai-button{right:18px}
+.is-mobile .mobile-brand{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800}
+.is-mobile .main-content{padding:22px 18px 38px;overflow:visible}
+.is-mobile .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.is-mobile .bottom-grid{grid-template-columns:1fr}
+.is-mobile .topbar{margin-bottom:20px}
+.is-mobile h1{font-size:29px}
+.is-mobile .ai-slot{position:fixed;z-index:900;inset:0;width:100vw;max-width:none;height:100dvh}
+.is-mobile .ai-panel{width:100%;height:100dvh;border:0;box-shadow:none}
+.is-mobile .mobile-overlay{display:none;position:fixed;z-index:750;inset:0;background:#00302655}
+.is-mobile.mobile-sidebar-open .mobile-overlay{display:block}
+.is-mobile.sidebar-collapsed .app-shell{grid-template-columns:1fr}
 
-@media(min-width:801px){
-  .mobile-header{display:none}
+@media(max-width:520px){
+  .is-mobile .topbar{gap:10px}
+  .is-mobile .period{padding:9px 11px}
+  .is-mobile .metrics{gap:10px}
+  .is-mobile .metric{padding:15px}
+  .is-mobile .metric-value{font-size:20px}
 }
