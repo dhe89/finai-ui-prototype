@@ -4,10 +4,10 @@ button,input{font:inherit}
 button{cursor:pointer}
 :root{--green:#005642;--green2:#08735d;--lime:#b7f51d;--bg:#f4f7f5;--line:#e7ece9;--muted:#8d9793}
 
-.finai-root{width:100%;min-height:100dvh;background:var(--bg)}
-.app-shell{position:relative;display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100dvh;background:var(--bg);overflow:visible}
-.sidebar-slot{min-width:0;background:var(--green);color:#fff}
-.sidebar-inner{min-height:100dvh;position:relative;padding:18px 14px}
+.finai-root{width:100%;min-height:0;height:auto;background:var(--bg)}
+.app-shell{position:relative;display:grid;grid-template-columns:250px minmax(0,1fr);min-height:0;height:auto;background:var(--bg);overflow:visible}
+.sidebar-slot{min-width:0;background:var(--green) !important;color:#fff;opacity:1}
+.sidebar-inner{min-height:0;height:100%;position:relative;padding:18px 14px}
 .sidebar-head{height:42px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 24px}
 .brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;white-space:nowrap}
 .brand-mark{width:30px;height:30px;border-radius:9px;background:var(--lime);color:var(--green);display:grid;place-items:center;font-weight:900;flex:none}
@@ -22,9 +22,9 @@ button{cursor:pointer}
 .status{margin-top:8px;color:#d2e7e1;font-size:9px;letter-spacing:0}
 .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--lime);margin-right:5px}
 
-.main-shell{min-width:0;overflow:visible}
+.main-shell{min-width:0;overflow:visible;height:auto}
 .header-slot{padding:28px clamp(20px,3vw,44px) 0}
-.desktop-header{height:42px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.desktop-header{height:42px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.desktop-header-left{display:flex;align-items:center;gap:10px}.desktop-menu-button{width:40px;height:40px;border-radius:50%;border:1px solid #e4e9e6;background:#fff;color:var(--green);box-shadow:0 4px 12px #0000000d;font-size:18px;display:grid;place-items:center}.desktop-brand{font-size:17px;font-weight:800;color:var(--green)}
 .desktop-app-name{font-size:13px;font-weight:800;color:#65716c}
 .round-button{width:40px;height:40px;border-radius:50%;border:1px solid #e4e9e6;background:#fff;color:var(--green);box-shadow:0 4px 12px #0000000d;font-size:18px}
 .mobile-header{display:none}
@@ -65,11 +65,11 @@ td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef
 .loading-page{opacity:.65}
 
 /* Desktop AI: fixed to the visible viewport, not to the page's full content height. */
-.ai-slot{position:fixed;z-index:700;top:0;right:0;bottom:0;width:min(390px,42vw);height:100dvh;pointer-events:none}
-.ai-panel{position:absolute;top:0;right:0;width:100%;height:100%;background:#fff;border-left:1px solid #e2e9e5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:.24s ease}
+.ai-slot{position:absolute;z-index:700;top:0;right:0;width:min(390px,42vw);height:100%;min-height:0;pointer-events:none}
+.ai-panel{position:absolute;top:0;right:0;width:100%;height:100%;min-height:0;background:#fff;border-left:1px solid #e2e9e5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:.24s ease}
 .ai-open .ai-panel{transform:translateX(0);opacity:1;visibility:visible}
 .ai-open .ai-slot{pointer-events:auto}
-.ai-head{flex:none;padding:20px 18px 14px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}
+.ai-head{flex:none;min-height:72px;padding:14px 18px 12px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}
 .ai-title{font-size:16px;font-weight:800}
 .ai-status{color:#9ba49f;font-size:8px;margin-top:5px}
 .ai-close{width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center;cursor:pointer}
@@ -102,10 +102,10 @@ td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef
 
 /* Component-width based responsive mode. This is more reliable than viewport media queries
    because Streamlit can render the V2 component inside a wrapper whose width differs from the device viewport. */
-.is-mobile .app-shell{display:block;min-height:100dvh;overflow:visible}
-.is-mobile .sidebar-slot{position:fixed;z-index:800;top:0;bottom:0;left:0;width:min(82vw,320px);min-height:100dvh;transform:translateX(-105%);transition:.25s ease;box-shadow:12px 0 40px #0003}
+.is-mobile .app-shell{display:block;min-height:0;height:auto;overflow:visible}
+.is-mobile .sidebar-slot{position:fixed;z-index:1000;top:0;bottom:0;left:0;width:min(82vw,320px);height:100vh;min-height:100vh;background:var(--green) !important;opacity:1 !important;transform:translateX(-105%);transition:.25s ease;box-shadow:12px 0 40px #0003}
 .is-mobile.mobile-sidebar-open .sidebar-slot{transform:translateX(0)}
-.is-mobile .main-shell{min-height:100dvh}
+.is-mobile .main-shell{min-height:0;height:auto}
 .is-mobile .header-slot{padding:0}
 .is-mobile .desktop-header{display:none}
 .is-mobile .mobile-header{display:flex;position:sticky;z-index:500;top:0;left:0;right:0;height:74px;background:#fff;border-bottom:1px solid #edf0ef;align-items:center;justify-content:center}
@@ -118,8 +118,8 @@ td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef
 .is-mobile .bottom-grid{grid-template-columns:1fr}
 .is-mobile .topbar{margin-bottom:20px}
 .is-mobile h1{font-size:29px}
-.is-mobile .ai-slot{position:fixed;z-index:900;inset:0;width:100vw;max-width:none;height:100dvh}
-.is-mobile .ai-panel{width:100%;height:100dvh;border:0;box-shadow:none}
+.is-mobile .ai-slot{position:fixed;z-index:1100;top:0;right:0;bottom:0;left:0;width:100vw;max-width:none;height:100vh;min-height:100vh}
+.is-mobile .ai-panel{width:100%;height:100vh;min-height:100vh;border:0;box-shadow:none}
 .is-mobile .mobile-overlay{display:none;position:fixed;z-index:750;inset:0;background:#00302655}
 .is-mobile.mobile-sidebar-open .mobile-overlay{display:block}
 .is-mobile.sidebar-collapsed .app-shell{grid-template-columns:1fr}
@@ -131,3 +131,11 @@ td{color:#737d79;padding:10px 12px;text-align:right;border-top:1px solid #edf0ef
   .is-mobile .metric{padding:15px}
   .is-mobile .metric-value{font-size:20px}
 }
+
+.is-mobile .sidebar-inner{height:100%;min-height:100%;background:var(--green);}
+.is-mobile .nav-item{color:#d9ece6;background:transparent;}
+.is-mobile .nav-item.active{background:#14765f;color:#fff;}
+.is-mobile .sidebar-head{margin-bottom:24px;}
+.is-mobile .ai-head{padding-top:16px;}
+
+.ai-viewport-mode{min-height:100vh;height:100vh;}
