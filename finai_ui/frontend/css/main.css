@@ -6,7 +6,7 @@ button,input{font:inherit}button{cursor:pointer}
 /* =========================================================
    APP FRAME
    ========================================================= */
-.finai-root{position:relative;width:100%;height:100%;min-height:0;background:var(--bg);overflow:hidden}
+.finai-root{position:relative;width:100%;height:100%;min-height:100%;background:var(--bg);overflow:hidden}
 .app-shell{position:relative;display:grid;grid-template-columns:250px minmax(0,1fr);width:100%;height:100%;min-width:0;min-height:0;background:var(--bg);overflow:hidden}
 .app-shell.sidebar-collapsed{grid-template-columns:56px minmax(0,1fr)}
 
@@ -62,7 +62,7 @@ table{width:100%;min-width:680px;border-collapse:collapse;font-size:8px}th{color
 .ai-panel{position:absolute;top:0;right:0;width:100%;height:100%;background:#fff;border-left:1px solid #E2E9E5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:transform .24s ease,opacity .18s ease,visibility .24s ease}
 .ai-open .ai-panel{transform:translateX(0);opacity:1;visibility:visible}.ai-open .ai-slot{pointer-events:auto}
 .ai-head{position:relative;z-index:2;flex:none;padding:14px 14px 12px;min-height:72px;border-bottom:1px solid #EDF0EF;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9BA49F;font-size:8px;margin-top:5px}
-.ai-close{position:relative;z-index:100;flex:none;width:38px;height:38px;border:1px solid #DFE5E2;border-radius:50%;background:#F0F2F1;color:#3F4A46;font-size:22px;line-height:1;display:grid;place-items:center;padding:0;visibility:visible;opacity:1}
+.ai-actions{display:flex;align-items:center;gap:8px;flex:none;position:relative;z-index:100}.ai-hide,.ai-close{width:38px;height:38px;border:1px solid #DFE5E2;border-radius:50%;background:#F0F2F1;color:#3F4A46;font-size:22px;line-height:1;display:grid;place-items:center;padding:0;visibility:visible;opacity:1}.ai-hide{font-size:24px}
 .ai-body{padding:24px 18px;overflow:auto;flex:1;min-height:0}.msg{display:flex;gap:10px;margin-bottom:22px}.msg.user{justify-content:flex-end;padding-left:28px}.msg.user .bubble{display:block;max-width:min(82%,300px);padding:10px 13px;border-radius:14px 14px 4px 14px;background:var(--green);color:#fff;font-size:11px;line-height:1.45;word-break:break-word;box-shadow:0 3px 10px #00564218}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9BA49F}
 .ai-foot{flex:none;padding:10px 14px 14px;border-top:1px solid #EDF0EF}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #E1E5E3;border-radius:10px;padding:11px 12px;color:#18211F;font-size:16px;line-height:1.2;outline:none}.ai-input:focus{border-color:#9BB8AE}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410D;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}
 
@@ -81,22 +81,22 @@ table{width:100%;min-width:680px;border-collapse:collapse;font-size:8px}th{color
 .is-mobile .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.is-mobile .bottom-grid{grid-template-columns:1fr}.is-mobile h1{font-size:29px}
 
 /* Closed mobile sidebar = transparent handle only. No green strip. */
-.is-mobile .sidebar-slot{position:absolute;z-index:1400;top:0;left:0;width:58px;height:100%;min-height:0;background:transparent;overflow:visible;pointer-events:none;box-shadow:none}
+.is-mobile .sidebar-slot{position:absolute;z-index:1400;top:0;left:0;width:58px;height:100%;min-height:100%;background:transparent;overflow:visible;pointer-events:none;box-shadow:none}
 .is-mobile .sidebar-inner{position:absolute;left:0;top:0;width:58px;height:100%;padding:0;background:transparent;pointer-events:none}
 .is-mobile .sidebar-head{position:absolute;left:0;top:14px;width:58px;height:42px;margin:0;display:block;pointer-events:auto}
-.is-mobile .sidebar-head .brand{display:none}.is-mobile .sidebar-head .sidebar-toggle{left:9px;right:auto;top:0;transform:none;width:40px;height:40px;background:var(--green);box-shadow:0 5px 16px #0002}
+.is-mobile .sidebar-head .brand{display:none}.is-mobile .sidebar-head .sidebar-toggle{left:9px;right:auto;top:0;transform:none;width:40px;height:40px;border:0;background:var(--green);color:#fff;box-shadow:0 5px 16px #0002;font-size:20px;z-index:1500}
 .is-mobile .nav,.is-mobile .sidebar-config{display:none}
 .is-mobile.mobile-sidebar-open .sidebar-slot{position:absolute;width:min(82vw,320px);height:100%;background:var(--green);pointer-events:auto;box-shadow:12px 0 40px #0003;overflow:hidden}
 .is-mobile.mobile-sidebar-open .sidebar-inner{width:100%;height:100%;padding:24px 14px 18px;background:var(--green);pointer-events:auto}
-.is-mobile.mobile-sidebar-open .sidebar-head{position:relative;left:auto;top:auto;width:100%;height:56px;margin:0 8px 28px;padding-right:52px;display:flex;pointer-events:auto}
-.is-mobile.mobile-sidebar-open .sidebar-head .brand{display:flex}.is-mobile.mobile-sidebar-open .sidebar-head .brand-mark{width:40px;height:40px}.is-mobile.mobile-sidebar-open .sidebar-head .sidebar-toggle{left:auto;right:10px;top:9px;transform:none}
+.is-mobile.mobile-sidebar-open .sidebar-head{position:relative;left:auto;top:auto;width:100%;height:56px;margin:0 0 28px;padding:0 8px;display:flex;pointer-events:auto}
+.is-mobile.mobile-sidebar-open .sidebar-head .brand{display:flex}.is-mobile.mobile-sidebar-open .sidebar-head .brand-mark{width:40px;height:40px}.is-mobile.mobile-sidebar-open .sidebar-head .sidebar-toggle{left:auto;right:8px;top:8px;transform:none}
 .is-mobile.mobile-sidebar-open .nav{display:flex}.is-mobile.mobile-sidebar-open .sidebar-config{display:block}
 .is-mobile .mobile-overlay{position:absolute;z-index:1300;inset:0;background:rgba(0,48,38,.34);pointer-events:none}.is-mobile.mobile-sidebar-open .mobile-overlay{display:block;pointer-events:auto}
 
 /* AI is inside the component viewport, never the browser/Streamlit chrome. */
 .is-mobile .ai-slot{position:absolute;z-index:1600;inset:0;width:100%;height:100%;pointer-events:none}
 .is-mobile.ai-open .ai-slot{pointer-events:auto}.is-mobile .ai-panel{position:absolute;inset:0;width:100%;height:100%;border:0;box-shadow:none}
-.is-mobile .ai-head{min-height:68px;padding:14px 62px 12px 18px;align-items:center}.is-mobile .ai-close{position:absolute;top:14px;right:14px;width:42px;height:42px;min-width:42px;min-height:42px;z-index:1000;font-size:24px}
+.is-mobile .ai-head{min-height:68px;padding:14px 18px 12px 18px;align-items:center}.is-mobile .ai-actions{gap:8px}.is-mobile .ai-hide,.is-mobile .ai-close{position:relative;width:42px;height:42px;min-width:42px;min-height:42px;z-index:1000;font-size:24px}
 .is-mobile .ai-body{padding:20px 18px}.is-mobile .ai-foot{padding:10px 14px max(14px,env(safe-area-inset-bottom))}.is-mobile .ai-input{font-size:16px}
 
 @media(max-width:800px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.bottom-grid{grid-template-columns:1fr}}
