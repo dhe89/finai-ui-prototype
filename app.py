@@ -30,11 +30,11 @@ OPENROUTER_API_KEY = get_api_key()
 # Free-first routing. If a specific free provider is rate-limited,
 # the app tries the next model and finally OpenRouter's free router.
 FREE_MODELS = [
-    # OpenRouter free router: automatically selects an available free model.
+    # OpenRouter's official free router dynamically selects an available
+    # free model. Avoid hard-coding a model that may later leave the free tier.
     "openrouter/free",
-    # Current finance-focused free fallback.
+    # Explicit free fallbacks currently listed by OpenRouter.
     "inclusionai/ling-3.0-flash-fin:free",
-    # Current general free fallback.
     "nvidia/nemotron-3-ultra-253b-v1:free",
 ]
 
@@ -95,7 +95,7 @@ def call_openrouter(messages, max_tokens=500):
                     "temperature": 0.2,
                     "max_tokens": max_tokens,
                 },
-                timeout=20,
+                timeout=12,
             )
 
             if response.status_code == 200:
@@ -119,9 +119,11 @@ def call_openrouter(messages, max_tokens=500):
             except Exception:
                 message = response.text
 
-            # Do not stop on a temporary free-model 404/429/5xx.
-            # Move to the next currently available free route.
+            # Authentication/configuration errors will not be fixed by trying
+            # another model. Other routing/provider errors can be retried.
             errors.append(f"{model} HTTP {response.status_code}: {message}")
+            if response.status_code in (401, 403):
+                break
 
         except requests.RequestException as exc:
             errors.append(f"{model}: {exc}")
@@ -135,8 +137,8 @@ if "messages" not in st.session_state:
 if "llm_test_result" not in st.session_state:
     st.session_state.llm_test_result = None
 
-if "last_finai_query" not in st.session_state:
-    st.session_state.last_finai_query = None
+if "last_finai_nonce" not in st.session_state:
+    st.session_state.last_finai_nonce = None
 
 if "ai_open" not in st.session_state:
     st.session_state.ai_open = False
@@ -145,28 +147,32 @@ if "ai_open" not in st.session_state:
 # question through the page query string; Python processes it server-side so
 # the OpenRouter API key never reaches browser JavaScript.
 finai_query = st.query_params.get("finai_q")
+finai_nonce = st.query_params.get("finai_n")
 if finai_query:
     finai_query = str(finai_query).strip()
-    if finai_query and st.session_state.get("last_finai_query") != finai_query:
+    finai_nonce = str(finai_nonce or "").strip()
+    # Nonce-based deduplication lets the user send the exact same question
+    # again while preventing a browser refresh from submitting it twice.
+    if finai_query and finai_nonce and st.session_state.get("last_finai_nonce") != finai_nonce:
         st.session_state.ai_open = True
-        st.session_state.last_finai_query = finai_query
+        st.session_state.last_finai_nonce = finai_nonce
         st.session_state.messages.append({"role": "user", "content": finai_query})
 
         llm_messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "system", "content": "Dashboard financial context:\n" + FINANCIAL_CONTEXT},
         ]
+        # Keep the request small and predictable for free models.
         llm_messages.extend(st.session_state.messages[-8:])
 
-        answer = call_openrouter(llm_messages)
+        answer = call_openrouter(llm_messages, max_tokens=350)
         st.session_state.messages.append({"role": "assistant", "content": answer})
 
-        # Remove the one-shot query and rerun so the freshly generated answer
-        # is rendered immediately and the same question cannot be submitted twice.
         try:
-            # Remove only the one-shot chat parameter.
-            if 'finai_q' in st.query_params:
-                del st.query_params['finai_q']
+            if "finai_q" in st.query_params:
+                del st.query_params["finai_q"]
+            if "finai_n" in st.query_params:
+                del st.query_params["finai_n"]
         except Exception:
             pass
         st.rerun()
@@ -333,32 +339,28 @@ function sendMessage(){
   const text=aiInput.value.trim();
   if(!text || aiSend.disabled)return;
 
-  // Immediate visual acknowledgement: the user message appears first,
-  // followed by a processing indicator. The server navigation happens after
-  // this paint so the user can see that the message was accepted.
+  // The critical fix: navigate the Streamlit parent synchronously from the
+  // actual click/Enter event. A delayed top navigation can be blocked by the
+  // iframe sandbox because the original user activation has been lost.
   aiSend.disabled=true;
   aiInput.disabled=true;
-  addLocalUserBubble(text);
-  const thinking=addThinkingBubble();
   aiInput.value='';
+  addLocalUserBubble(text);
+  addThinkingBubble();
 
-  setTimeout(()=>{
-    const encoded=encodeURIComponent(text);
-    const target=window.location.origin+'/?finai_q='+encoded;
+  const nonce=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
+  const target=window.location.origin+'/?finai_q='+encodeURIComponent(text)+'&finai_n='+encodeURIComponent(nonce);
 
-    // Navigate the Streamlit parent document. Keep the local bubbles visible
-    // until navigation starts so the user gets immediate acknowledgement.
-    let navigated=false;
-    const go=()=>{
-      if(navigated)return;
-      navigated=true;
-      try { window.top.location.assign(target); }
-      catch(e) { try { window.parent.location.assign(target); } catch(_) {} }
-    };
-    setTimeout(go,120);
-    setTimeout(go,900);
-  },180);
+  try {
+    // Parent is the Streamlit app document. Use a direct, synchronous
+    // navigation while the user activation is still present.
+    window.parent.location.href=target;
+  } catch(e) {
+    try { window.top.location.href=target; }
+    catch(_) { window.location.href=target; }
+  }
 }
+
 leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{setSidebarCollapsed(!leftCollapsed);}});
 aiClose.addEventListener('click',()=>setAI(false));
 desktopAI.addEventListener('click',()=>setAI(true));
