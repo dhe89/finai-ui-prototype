@@ -410,15 +410,22 @@ function sendMessage(){
   const nonce=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
   const target=window.location.origin+'/?finai_q='+encodeURIComponent(text)+'&finai_n='+encodeURIComponent(nonce);
 
+  // Use a real top-level link as the first navigation mechanism. Unlike
+  // window.top.location, an actual anchor with target=_top preserves the
+  // browser's user-activation context and avoids navigating this component
+  // iframe itself.
   try {
-    // IMPORTANT: this code runs inside the Streamlit component iframe.
-    // Navigate ONLY the real top-level page. Never fall back to
-    // window.location, because that navigates the component iframe itself
-    // and is the direct cause of the nested/double-iframe bug.
-    window.top.location.replace(target);
+    const link=document.createElement('a');
+    link.href=target;
+    link.target='_top';
+    link.rel='noopener';
+    link.style.display='none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(()=>{try{link.remove();}catch(e){}},1000);
   } catch(e) {
-    // Keep the fallback top-level as well; never navigate the component frame.
-    window.open(target, '_top');
+    // Last-resort top-level navigation only. Never use window.location here.
+    try { window.open(target,'_top'); } catch(_) {}
   }
 }
 
