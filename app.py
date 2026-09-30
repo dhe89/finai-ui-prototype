@@ -30,12 +30,12 @@ OPENROUTER_API_KEY = get_api_key()
 # Free-first routing. If a specific free provider is rate-limited,
 # the app tries the next model and finally OpenRouter's free router.
 FREE_MODELS = [
-    # Finance-focused free model currently listed by OpenRouter.
-    "inclusionai/ling-3.0-flash-fin:free",
-    # Strong general free fallback.
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
-    # OpenRouter automatic free-model router as the final fallback.
+    # OpenRouter free router: automatically selects an available free model.
     "openrouter/free",
+    # Current finance-focused free fallback.
+    "inclusionai/ling-3.0-flash-fin:free",
+    # Current general free fallback.
+    "nvidia/nemotron-3-ultra-253b-v1:free",
 ]
 
 SYSTEM_PROMPT = (
@@ -95,7 +95,7 @@ def call_openrouter(messages, max_tokens=500):
                     "temperature": 0.2,
                     "max_tokens": max_tokens,
                 },
-                timeout=45,
+                timeout=20,
             )
 
             if response.status_code == 200:
@@ -103,6 +103,11 @@ def call_openrouter(messages, max_tokens=500):
                 choices = data.get("choices", [])
                 if choices:
                     answer = choices[0].get("message", {}).get("content")
+                    if isinstance(answer, list):
+                        answer = "".join(
+                            str(part.get("text", "")) if isinstance(part, dict) else str(part)
+                            for part in answer
+                        )
                     if answer:
                         return str(answer).strip()
                 errors.append(f"{model}: empty response")
@@ -142,8 +147,9 @@ if "ai_open" not in st.session_state:
 finai_query = st.query_params.get("finai_q")
 if finai_query:
     finai_query = str(finai_query).strip()
-    if finai_query:
+    if finai_query and st.session_state.get("last_finai_query") != finai_query:
         st.session_state.ai_open = True
+        st.session_state.last_finai_query = finai_query
         st.session_state.messages.append({"role": "user", "content": finai_query})
 
         llm_messages = [
@@ -214,7 +220,7 @@ button{font:inherit;cursor:pointer}
 .bottom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.small{padding:16px}.small-title{font-size:12px;font-weight:800}.kpi{display:flex;justify-content:space-between;margin-top:15px;font-size:9px}.kpi-label{color:#68736f}.kpi-value{font-size:11px;font-weight:800}
 .ai{position:absolute;z-index:200;top:0;right:0;bottom:0;width:min(390px,42%);height:auto;background:#fff;border-left:1px solid #e2e9e5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:transform .24s ease,opacity .18s ease,visibility .24s ease}
 .ai.open{transform:translateX(0);opacity:1;visibility:visible}
-.ai-head{position:relative;z-index:2;flex:none;padding:14px 14px 12px;min-height:66px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{position:relative;z-index:3;flex:none;width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9ba49f}.ai-foot{padding:10px 14px 14px;border-top:1px solid #edf0ef}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}.ai-input:focus{border-color:#9bb8ae}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410d;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
+.ai-head{position:relative;z-index:2;flex:none;padding:14px 14px 12px;min-height:66px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{position:relative;z-index:3;flex:none;width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.msg.user{justify-content:flex-end;padding-left:28px}.msg.user .bubble{display:block;max-width:min(82%,300px);padding:10px 13px;border-radius:14px 14px 4px 14px;background:#005642;color:#fff;font-size:11px;line-height:1.45;word-break:break-word;box-shadow:0 3px 10px #00564218}.msg.user.local-pending .bubble{background:#005642;color:#fff}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.45;max-width:280px}.muted{color:#9ba49f}.ai-foot{padding:10px 14px 14px;border-top:1px solid #edf0ef}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}.ai-input:focus{border-color:#9bb8ae}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410d;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
 .mobile-head{display:none}
 .finai-root.mobile-view .app,.finai-root.mobile-view .app.left-collapsed{display:block;min-height:0;overflow:visible}
 .finai-root.mobile-view .left{position:fixed;z-index:300;inset:0 auto 0 0;width:min(82vw,320px);height:100dvh;transform:translateX(-105%);transition:transform .25s ease;box-shadow:12px 0 40px #0003;padding:18px 16px}
@@ -337,27 +343,20 @@ function sendMessage(){
   aiInput.value='';
 
   setTimeout(()=>{
-    // Remove the temporary thinking bubble only when the page is about to
-    // navigate; the Streamlit rerun will rebuild the permanent history.
-    if(thinking && thinking.parentNode) thinking.parentNode.removeChild(thinking);
-
     const encoded=encodeURIComponent(text);
-    const target='/?finai_q='+encoded;
+    const target=window.location.origin+'/?finai_q='+encoded;
 
-    // Use a real top-level anchor navigation. This is more reliable from a
-    // Streamlit HTML component iframe than assigning parent.location manually.
-    const a=document.createElement('a');
-    a.href=target;
-    a.target='_top';
-    a.rel='noopener';
-    a.style.display='none';
-    document.body.appendChild(a);
-    a.click();
-
-    // Last fallback for environments that block synthetic anchor clicks.
-    setTimeout(()=>{
-      try { window.top.location.href=target; } catch(e) {}
-    },120);
+    // Navigate the Streamlit parent document. Keep the local bubbles visible
+    // until navigation starts so the user gets immediate acknowledgement.
+    let navigated=false;
+    const go=()=>{
+      if(navigated)return;
+      navigated=true;
+      try { window.top.location.assign(target); }
+      catch(e) { try { window.parent.location.assign(target); } catch(_) {} }
+    };
+    setTimeout(go,120);
+    setTimeout(go,900);
   },180);
 }
 leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{setSidebarCollapsed(!leftCollapsed);}});
