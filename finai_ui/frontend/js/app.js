@@ -50,8 +50,7 @@ export default function(component) {
   }
 
   function formatText(text) {
-    return esc(text).replace(/
-/g, '<br>');
+    return esc(text).replace(/\n/g, '<br>');
   }
 
   function renderPage(page) {
