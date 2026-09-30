@@ -1,8 +1,7 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import requests
 import html
-import urllib.parse
+import re
 import json
 
 st.set_page_config(
@@ -30,15 +29,7 @@ OPENROUTER_API_KEY = get_api_key()
 
 # Free-first routing. If a specific free provider is rate-limited,
 # the app tries the next model and finally OpenRouter's free router.
-FREE_MODELS = [
-    # Use a currently verified free finance model first.
-    "inclusionai/ling-3.0-flash-fin:free",
-    # Current OpenRouter slug for NVIDIA Nemotron 3 Ultra (free).
-    "nvidia/nemotron-3-ultra-550b-a55b-20260604:free",
-    # Official dynamic free router as the final fallback.
-    "openrouter/free",
-]
-
+FREE_MODELS = ["openrouter/free"]
 SYSTEM_PROMPT = (
     "You are FinAI, a Financial Intelligence Assistant. "
     "Answer in clear, concise Indonesian unless the user uses another language. "
@@ -96,7 +87,7 @@ def call_openrouter(messages, max_tokens=500):
                     "temperature": 0.2,
                     "max_tokens": max_tokens,
                 },
-                timeout=12,
+                timeout=30,
             )
 
             if response.status_code == 200:
@@ -199,12 +190,10 @@ HTML = r'''
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;width:100%;background:#f4f7f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18211f}
 button{font:inherit;cursor:pointer}
 :root{--green:#005642;--green2:#08735d;--lime:#b7f51d;--bg:#f4f7f5;--line:#e7ece9;--muted:#8d9793}
-.app{position:relative;min-height:0;display:grid;grid-template-columns:250px minmax(0,1fr);background:var(--bg);overflow:hidden}
-.app.left-collapsed{grid-template-columns:0 minmax(0,1fr)}
-.app.left-collapsed .left{display:none}
+.finai-root{position:relative;width:100%;height:calc(100vh - 110px);min-height:680px;background:#f4f7f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18211f;overflow:hidden}.app{position:relative;width:100%;height:100%;min-height:0;display:grid;grid-template-columns:250px minmax(0,1fr);background:var(--bg);overflow:hidden}
+.app.left-collapsed{grid-template-columns:72px minmax(0,1fr)}
 .left{position:relative;background:var(--green);color:#fff;padding:18px 14px 18px;min-width:0;overflow:hidden}
 .sidebar-head{height:42px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 24px}
 .brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;white-space:nowrap;min-width:0}
@@ -227,8 +216,6 @@ button{font:inherit;cursor:pointer}
 .main{min-width:0;overflow:auto;padding:28px clamp(20px,3vw,44px) 44px}
 .desktop-header{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:20px;min-height:42px}
 .desktop-header-left{display:flex;align-items:center;gap:10px;min-width:0}
-.desktop-menu-reopen{display:none;width:40px;height:40px;border-radius:50%;border:1px solid #e4e9e6;background:#fff;color:var(--green);place-items:center;box-shadow:0 4px 12px #0000000d;font-size:18px}
-.desktop-menu-reopen.show{display:grid}
 .desktop-app-name{font-size:13px;font-weight:800;color:#65716c}
 .desktop-ai-trigger{width:40px;height:40px;border-radius:50%;border:1px solid #e4e9e6;background:#fff;color:var(--green);display:grid;place-items:center;box-shadow:0 4px 12px #0000000d;font-size:18px}
 .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px}
@@ -238,21 +225,9 @@ button{font:inherit;cursor:pointer}
 .bottom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.small{padding:16px}.small-title{font-size:12px;font-weight:800}.kpi{display:flex;justify-content:space-between;margin-top:15px;font-size:9px}.kpi-label{color:#68736f}.kpi-value{font-size:11px;font-weight:800}
 .ai{position:absolute;z-index:200;top:0;right:0;bottom:0;width:min(390px,42%);height:auto;background:#fff;border-left:1px solid #e2e9e5;display:flex;flex-direction:column;overflow:hidden;box-shadow:-14px 0 40px #00000016;transform:translateX(105%);opacity:0;visibility:hidden;transition:transform .24s ease,opacity .18s ease,visibility .24s ease}
 .ai.open{transform:translateX(0);opacity:1;visibility:visible}
-.ai-head{position:relative;z-index:2;flex:none;padding:14px 14px 12px;min-height:66px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{position:relative;z-index:3;flex:none;width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1}.msg{display:flex;gap:10px;margin-bottom:22px}.msg.user{justify-content:flex-end;padding-left:28px}.msg.user .bubble{display:block;max-width:min(82%,300px);padding:10px 13px;border-radius:14px 14px 4px 14px;background:#005642;color:#fff;font-size:11px;line-height:1.45;word-break:break-word;box-shadow:0 3px 10px #00564218}.msg.user.local-pending .bubble{background:#005642;color:#fff}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.55;max-width:min(100%,330px);white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}.muted{color:#9ba49f}.ai-foot{padding:10px 14px 14px;border-top:1px solid #edf0ef}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}.ai-input:focus{border-color:#9bb8ae}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410d;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
+.ai-head{position:relative;z-index:2;flex:none;padding:14px 14px 12px;min-height:66px;border-bottom:1px solid #edf0ef;display:flex;justify-content:space-between;align-items:flex-start}.ai-title{font-size:16px;font-weight:800}.ai-status{color:#9ba49f;font-size:8px;margin-top:5px}.ai-close{position:relative;z-index:3;flex:none;width:38px;height:38px;border:0;border-radius:50%;background:#f0f2f1;color:#7c8581;font-size:22px;display:grid;place-items:center}.ai-body{padding:24px 18px;overflow:auto;flex:1;min-height:0;overscroll-behavior:contain}.msg{display:flex;gap:10px;margin-bottom:22px}.msg.user{justify-content:flex-end;padding-left:28px}.msg.user .bubble{display:block;max-width:min(82%,300px);padding:10px 13px;border-radius:14px 14px 4px 14px;background:#005642;color:#fff;font-size:11px;line-height:1.45;word-break:break-word;box-shadow:0 3px 10px #00564218}.msg.user.local-pending .bubble{background:#005642;color:#fff}.bot{width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--lime);display:grid;place-items:center;flex:none;font-size:11px}.msgtext{font-size:11px;line-height:1.55;flex:1;min-width:0;max-width:calc(100% - 32px);overflow-wrap:anywhere;word-break:break-word}.ai-response{color:#2f3936}.ai-response>div{margin:0 0 6px}.ai-response ul{margin:4px 0 8px;padding-left:18px}.ai-response li{margin:0 0 4px}.ai-response code{background:#f1f4f2;border-radius:4px;padding:1px 4px;font-size:.92em}.md-spacer{height:3px}.muted{color:#9ba49f}.ai-foot{padding:10px 14px 14px;border-top:1px solid #edf0ef}.ai-input-row{display:flex;gap:8px}.ai-input{flex:1;min-width:0;border:1px solid #e1e5e3;border-radius:10px;padding:11px 12px;color:#18211f;font-size:10px;outline:none}.ai-input:focus{border-color:#9bb8ae}.ai-send{width:42px;border:0;border-radius:10px;background:var(--lime);color:#25410d;font-size:15px;font-weight:800}.ai-send:disabled{opacity:.55;cursor:wait}.send{width:100%;border:0;border-radius:9px;padding:10px;background:var(--lime);color:#25410d;font-size:9px;font-weight:800}
 .mobile-head{display:none}
-.finai-root.force-mobile .app,.finai-root.force-mobile .app.left-collapsed{display:block;min-height:0;overflow:visible}
-.finai-root.force-mobile .left{position:fixed;z-index:300;inset:0 auto 0 0;width:min(82vw,320px);height:100dvh;transform:translateX(-105%);transition:transform .25s ease;box-shadow:12px 0 40px #0003;padding:18px 16px}
-.finai-root.force-mobile .left.mobile-open{transform:translateX(0)}
-.finai-root.force-mobile .main{padding:96px 18px 38px;overflow:visible}
-.finai-root.force-mobile .desktop-header{display:none}
-.finai-root.force-mobile .mobile-head{display:flex;position:fixed;top:0;left:0;right:0;height:74px;z-index:250;background:#fff;border-bottom:1px solid #edf0ef;align-items:center;justify-content:center}
-.finai-root.force-mobile .mobile-menu{position:absolute;left:18px;top:16px;width:42px;height:42px;border-radius:50%;border:1px solid #e7ebe9;background:#fff;font-size:21px;color:#66716d}
-.finai-root.force-mobile .mobile-brand{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800}
-.finai-root.force-mobile .mobile-ai{position:absolute;right:18px;top:16px;width:42px;height:42px;border-radius:50%;border:1px solid #e7ebe9;background:#fff;color:var(--green);font-size:17px}
-.finai-root.force-mobile .mobile-overlay{display:none;position:fixed;inset:0;z-index:280;background:#00302655}
-.finai-root.force-mobile .mobile-overlay.show{display:block}
-.finai-root.force-mobile .ai{position:fixed;z-index:500;top:0;right:0;bottom:0;left:0;width:100vw;height:100dvh;min-height:0;border:0;box-shadow:none}
-.finai-root.mobile-view .app,.finai-root.mobile-view .app.left-collapsed{display:block;min-height:0;overflow:visible}
+.finai-root.mobile-view{height:auto;min-height:100dvh;overflow:visible}.finai-root.mobile-view .app,.finai-root.mobile-view .app.left-collapsed{display:block;min-height:100dvh;height:auto;overflow:visible}
 .finai-root.mobile-view .left{position:fixed;z-index:300;inset:0 auto 0 0;width:min(82vw,320px);height:100dvh;transform:translateX(-105%);transition:transform .25s ease;box-shadow:12px 0 40px #0003;padding:18px 16px}
 .finai-root.mobile-view .left.mobile-open{transform:translateX(0)}
 .finai-root.mobile-view .main{padding:96px 18px 38px;overflow:visible}
@@ -266,7 +241,7 @@ button{font:inherit;cursor:pointer}
 .finai-root.mobile-view .ai-head{padding-top:max(14px,env(safe-area-inset-top));min-height:70px}.finai-root.mobile-view .ai-body{padding-bottom:20px}.finai-root.mobile-view .ai-foot{padding-bottom:max(14px,env(safe-area-inset-bottom))}.finai-root.mobile-view .main{width:100%;max-width:100%;overflow-x:hidden}
 .finai-root.mobile-view .ai{position:fixed;z-index:500;top:0;right:0;bottom:0;left:0;width:100vw;height:100dvh;min-height:0;border:0;box-shadow:none}
 @media(max-width:800px){
- body{background:#f4f7f5}.app,.app.left-collapsed{display:block;min-height:100vh;overflow:visible}
+ .finai-root{height:auto;min-height:100dvh;overflow:visible}.app,.app.left-collapsed{display:block;min-height:100dvh;height:auto;overflow:visible}
  .left{position:fixed;z-index:300;inset:0 auto 0 0;width:min(78vw,320px);height:100dvh;transform:translateX(-105%);transition:transform .25s ease;box-shadow:12px 0 40px #0003;padding:18px 16px}
  .left.mobile-open{transform:translateX(0)}.app.left-collapsed .left{padding:18px 16px}.app.left-collapsed .brand-text,.app.left-collapsed .nav-text,.app.left-collapsed .config-text,.app.left-collapsed .config-pill,.app.left-collapsed .status{display:inline}.app.left-collapsed .sidebar-head{justify-content:space-between;margin-left:2px;margin-right:2px}.app.left-collapsed .brand{justify-content:flex-start}.app.left-collapsed .sidebar-toggle{position:static;width:34px;height:34px;border-radius:10px;font-size:19px;background:#ffffff12}.app.left-collapsed .nav-item{justify-content:flex-start;padding:0 12px}
  .main{padding:96px 18px 38px;overflow:visible}.desktop-header{display:none}.topbar{margin-bottom:20px}.title{font-size:29px}.metrics{gap:12px}.metric{padding:17px}.metric-value{font-size:20px}.bottom{grid-template-columns:1fr}
@@ -292,7 +267,7 @@ button{font:inherit;cursor:pointer}
   </aside>
 
   <main class="main">
-    <div class="desktop-header"><div class="desktop-header-left"><button id="desktopMenuReopen" class="desktop-menu-reopen" aria-label="Show navigation" title="Show navigation">☰</button><div class="desktop-app-name">FinAI</div></div><button id="desktopAI" class="desktop-ai-trigger" aria-label="Open AI Assistant" title="Open AI Assistant">✦</button></div>
+    <div class="desktop-header"><div class="desktop-header-left"><div class="desktop-app-name">FinAI</div></div><button id="desktopAI" class="desktop-ai-trigger" aria-label="Open AI Assistant" title="Open AI Assistant">✦</button></div>
     <div class="topbar"><div><div class="eyebrow">FINANCIAL INTELLIGENCE</div><div class="title">Overview</div><div class="subtitle">Financial performance overview for September 2026</div></div><div class="period">September 2026⌄</div></div>
     <div class="metrics">
       <div class="card metric"><div class="metric-label">Total Assets</div><div class="metric-value">190,510.7</div><div class="metric-change">-1.98% vs last month</div></div>
@@ -328,7 +303,6 @@ const ai=document.getElementById('ai');
 const leftToggle=document.getElementById('leftToggle');
 const aiClose=document.getElementById('aiClose');
 const desktopAI=document.getElementById('desktopAI');
-const desktopMenuReopen=document.getElementById('desktopMenuReopen');
 const mobileAI=document.getElementById('mobileAI');
 const mobileMenu=document.getElementById('mobileMenu');
 const overlay=document.getElementById('mobileOverlay');
@@ -336,38 +310,12 @@ const aiBody=document.getElementById('aiBody');
 const aiInput=document.getElementById('aiInput');
 const aiSend=document.getElementById('aiSend');
 let leftCollapsed=false;
-function viewportWidth(){
-  const widths=[];
-  try{if(window.innerWidth)widths.push(window.innerWidth);}catch(e){}
-  try{if(window.parent && window.parent.innerWidth)widths.push(window.parent.innerWidth);}catch(e){}
-  try{if(window.top && window.top.innerWidth)widths.push(window.top.innerWidth);}catch(e){}
-  return widths.length?Math.min(...widths):800;
-}
-function isMobile(){
-  const ua=navigator.userAgent||'';
-  return viewportWidth()<=800 || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-}
-function syncMobileClass(){root.classList.toggle('mobile-view',isMobile());root.classList.toggle('force-mobile',isMobile());}
+function parentWidth(){try{return window.parent.innerWidth||window.innerWidth;}catch(e){return window.innerWidth;}}
+function isMobile(){return parentWidth()<=800;}
+function syncMobileClass(){root.classList.toggle('mobile-view',isMobile());}
 function setAI(open){ai.classList.toggle('open',!!open);ai.setAttribute('aria-hidden',String(!open));if(open){setTimeout(()=>aiInput.focus(),250);}}
-function setSidebarCollapsed(collapsed){
-  leftCollapsed=!!collapsed;
-  app.classList.toggle('left-collapsed',leftCollapsed);
-  desktopMenuReopen.classList.toggle('show',leftCollapsed && !isMobile());
-  try{localStorage.setItem('finai_sidebar_collapsed',leftCollapsed?'1':'0');}catch(e){}
-}
-function syncResponsive(){
-  const mobile=isMobile();
-  syncMobileClass();
-  if(mobile){
-    app.classList.remove('left-collapsed');
-    desktopMenuReopen.classList.remove('show');
-    overlay.classList.toggle('show',left.classList.contains('mobile-open'));
-  }else{
-    left.classList.remove('mobile-open');
-    overlay.classList.remove('show');
-    setSidebarCollapsed(leftCollapsed);
-  }
-}
+function setSidebarCollapsed(collapsed){leftCollapsed=!!collapsed;app.classList.toggle('left-collapsed',leftCollapsed);leftToggle.textContent='☰';}
+function syncResponsive(){syncMobileClass();if(isMobile()){app.classList.remove('left-collapsed');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{left.classList.remove('mobile-open');overlay.classList.remove('show');}}
 function addLocalUserBubble(text){
   const row=document.createElement('div');
   row.className='msg user local-pending';
@@ -386,8 +334,8 @@ function addThinkingBubble(){
   return row;
 }
 
-const CHAT_KEY='finai_chat_history_v1';
 const SERVER_MESSAGES=__SERVER_MESSAGES_JSON__;
+const CHAT_KEY='finai_chat_history_v2';
 
 function readLocalHistory(){
   try{
@@ -397,40 +345,61 @@ function readLocalHistory(){
   }catch(e){return [];}
 }
 function writeLocalHistory(messages){
-  try{localStorage.setItem(CHAT_KEY,JSON.stringify(messages.slice(-30)));}catch(e){}
+  try{
+    localStorage.setItem(CHAT_KEY,JSON.stringify((messages||[]).slice(-50)));
+  }catch(e){}
 }
-function mergeHistory(localMsgs, serverMsgs){
-  const merged=[...localMsgs];
-  for(const m of (serverMsgs||[])){
-    if(!m || !m.role) continue;
-    const exists=merged.some(x=>x && x.role===m.role && x.content===m.content);
-    if(!exists) merged.push(m);
-  }
-  return merged.slice(-30);
+function mergeServerHistory(localMsgs, serverMsgs){
+  const local=Array.isArray(localMsgs)?localMsgs:[];
+  const server=Array.isArray(serverMsgs)?serverMsgs:[];
+  if(!server.length) return local.slice(-50);
+
+  // Server history is authoritative after an AI response has completed.
+  // The only time local history should be newer is immediately after the
+  // user submits a message and before the server finishes processing it.
+  if(server.length >= local.length) return server.slice(-50);
+
+  // Preserve a locally pending message while the server is processing it.
+  return local.slice(-50);
+}
+function escapeText(value){
+  return String(value ?? '');
 }
 function renderMessageList(messages){
   const greeting=`<div class="msg"><div class="bot">✦</div><div class="msgtext"><b>Hi there! 👋</b><br><span class="muted">I'm your Financial AI Assistant.<br>Ask me about the dashboard performance.</span></div></div>`;
   aiBody.innerHTML=greeting;
-  for(const m of messages){
+  for(const m of (messages||[])){
     if(!m || !m.role || !m.content) continue;
     const row=document.createElement('div');
     row.className='msg'+(m.role==='user'?' user':'');
     if(m.role==='user'){
       const bubble=document.createElement('div');
       bubble.className='bubble';
-      bubble.textContent=String(m.content);
+      bubble.textContent=escapeText(m.content);
       row.appendChild(bubble);
     }else{
-      row.innerHTML='<div class="bot">✦</div><div class="msgtext"></div>';
-      row.querySelector('.msgtext').textContent=String(m.content);
+      row.innerHTML='<div class="bot">✦</div><div class="msgtext ai-response"></div>';
+      const box=row.querySelector('.msgtext');
+      const safe=escapeText(m.content)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+        .replace(/\n/g,'<br>');
+      box.innerHTML=safe;
     }
     aiBody.appendChild(row);
   }
   aiBody.scrollTop=aiBody.scrollHeight;
 }
+
 function hydrateHistory(){
-  const merged=mergeHistory(readLocalHistory(),SERVER_MESSAGES);
-  writeLocalHistory(merged);
+  const local=readLocalHistory();
+  const merged=mergeServerHistory(local,SERVER_MESSAGES);
+
+  // Once Python has produced a response, synchronize the browser history.
+  if(Array.isArray(SERVER_MESSAGES) && SERVER_MESSAGES.length >= local.length){
+    writeLocalHistory(merged);
+  }
+
   renderMessageList(merged);
 }
 
@@ -438,33 +407,34 @@ function sendMessage(){
   const text=aiInput.value.trim();
   if(!text || aiSend.disabled)return;
 
-  // The critical fix: navigate the Streamlit parent synchronously from the
-  // actual click/Enter event. A delayed top navigation can be blocked by the
-  // iframe sandbox because the original user activation has been lost.
   aiSend.disabled=true;
   aiInput.disabled=true;
   aiInput.value='';
+
+  // Immediate visual acknowledgement.
   addLocalUserBubble(text);
   addThinkingBubble();
-  const current=mergeHistory(readLocalHistory(),[{role:'user',content:text}]);
-  writeLocalHistory(current);
+
+  const local=readLocalHistory();
+  local.push({role:'user',content:text});
+  writeLocalHistory(local);
 
   const nonce=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
-  const target=window.location.origin+'/?finai_q='+encodeURIComponent(text)+'&finai_n='+encodeURIComponent(nonce);
 
-  try {
-    // IMPORTANT: components.html runs inside a Streamlit iframe. Navigating
-    // window.parent can navigate the component frame itself and create nested
-    // copies of the app. Always navigate the real top-level Streamlit page.
-    window.top.location.assign(target);
-  } catch(e) {
-    // Last-resort fallback for restrictive browsers.
-    window.location.assign(target);
-  }
+  // Build the URL from the current top-level document. Do NOT use
+  // components.html, window.parent, or window.top here. This app uses
+  // st.html, so this is a normal page navigation and cannot create
+  // another copy of the Streamlit application inside an iframe.
+  const target=new URL(window.location.href);
+  target.searchParams.set('finai_q',text);
+  target.searchParams.set('finai_n',nonce);
+
+  // Navigation happens directly from the click/Enter event so browsers
+  // cannot treat it as an unsolicited iframe navigation.
+  window.location.assign(target.toString());
 }
 
-leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.remove('mobile-open');overlay.classList.remove('show');}else{setSidebarCollapsed(!leftCollapsed);}});
-desktopMenuReopen.addEventListener('click',()=>setSidebarCollapsed(false));
+leftToggle.addEventListener('click',()=>{if(isMobile()){left.classList.toggle('mobile-open');overlay.classList.toggle('show',left.classList.contains('mobile-open'));}else{setSidebarCollapsed(!leftCollapsed);}});
 aiClose.addEventListener('click',()=>setAI(false));
 desktopAI.addEventListener('click',()=>setAI(true));
 mobileAI.addEventListener('click',()=>setAI(true));
@@ -474,9 +444,7 @@ aiSend.addEventListener('click',sendMessage);
 aiInput.addEventListener('keydown',e=>{if(e.key==='Enter')sendMessage();});
 window.addEventListener('resize',syncResponsive);
 window.addEventListener('orientationchange',syncResponsive);
-let savedSidebar=false;
-try{savedSidebar=localStorage.getItem('finai_sidebar_collapsed')==='1';}catch(e){}
-setSidebarCollapsed(savedSidebar);
+setSidebarCollapsed(false);
 hydrateHistory();
 setAI(__AI_OPEN__);
 syncResponsive();
@@ -485,14 +453,12 @@ syncResponsive();
 </html>
 '''
 
-# Chat history is hydrated client-side from localStorage plus the current
-# Streamlit session. This prevents history loss when the top-level page must
-# reload to deliver a message to Python.
-message_blocks = "<div class='msg'><div class='bot'>✦</div><div class='msgtext'><b>Hi there! 👋</b><br><span class='muted'>I'm your Financial AI Assistant.<br>Ask me about the dashboard performance.</span></div></div>"
+# Render chat history directly in the single Streamlit page. No iframe is
+# created, so submitting a second message cannot recursively create another
+# copy of the application.
 server_messages_json = json.dumps(st.session_state.messages, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
-HTML = HTML.replace("__AI_MESSAGES__", message_blocks)
+HTML = HTML.replace("__AI_MESSAGES__", "")
 HTML = HTML.replace("__SERVER_MESSAGES_JSON__", server_messages_json)
 HTML = HTML.replace("__AI_OPEN__", "true" if st.session_state.ai_open else "false")
 
-components.html(HTML, height=1120, scrolling=False)
-
+st.html(HTML, unsafe_allow_javascript=True)
