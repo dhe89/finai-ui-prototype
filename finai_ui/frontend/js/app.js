@@ -30,6 +30,15 @@ export default function(component) {
     handlersBound: false,
   });
 
+  function applyResponsiveMode() {
+    const isMobile = root.clientWidth <= 800;
+    root.classList.toggle('is-mobile', isMobile);
+    if (!isMobile) {
+      state.mobileSidebarOpen = false;
+      root.classList.remove('mobile-sidebar-open');
+    }
+  }
+
   function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
@@ -136,9 +145,9 @@ export default function(component) {
       }
     });
 
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 800) closeMobileSidebar();
-    });
+    const resizeObserver = new ResizeObserver(() => applyResponsiveMode());
+    resizeObserver.observe(root);
+    state.resizeObserver = resizeObserver;
   }
 
   // If Python reran, keep the same component instance and only refresh data-driven content.
@@ -151,6 +160,7 @@ export default function(component) {
     if (send) send.disabled = false;
   }
 
+  applyResponsiveMode();
   renderPage(state.page);
   root.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
   root.classList.toggle('mobile-sidebar-open', state.mobileSidebarOpen);
