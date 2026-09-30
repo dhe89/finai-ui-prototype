@@ -130,8 +130,7 @@ export default function(component) {
         closeMobileSidebar();
         return;
       }
-      if (event.target.closest('#desktop-menu-button')) { toggleSidebar(); return; }
-      if (event.target.closest('#mobile-menu-button')) { toggleSidebar(); return; }
+      if (event.target.closest('#sidebar-toggle')) { toggleSidebar(); return; }
       if (event.target.closest('#desktop-ai-button')) { setAI(true); return; }
       if (event.target.closest('#mobile-ai-button')) { setAI(true); return; }
       if (event.target.closest('#ai-close')) { setAI(false); return; }
