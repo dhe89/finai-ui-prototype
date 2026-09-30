@@ -77,10 +77,8 @@ export default function(component) {
   function setAI(open) {
     state.aiOpen = !!open;
     root.classList.toggle('ai-open', state.aiOpen);
-    root.classList.toggle('ai-viewport-mode', state.aiOpen);
     const panel = root.querySelector('.ai-panel');
     if (panel) panel.setAttribute('aria-hidden', String(!state.aiOpen));
-    if (state.aiOpen) setTimeout(() => root.querySelector('#ai-input')?.focus(), 80);
   }
 
   function toggleSidebar() {
@@ -114,28 +112,34 @@ export default function(component) {
     state.boundRoot = root;
 
     // Direct button handlers avoid lost delegation when Streamlit remounts the component.
-    root.querySelector('#sidebar-toggle')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleSidebar();
-    });
-    root.querySelector('#desktop-ai-button')?.addEventListener('click', () => setAI(true));
-    root.querySelector('#mobile-ai-button')?.addEventListener('click', () => setAI(true));
-    root.querySelector('#ai-close')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setAI(false);
-    });
     root.querySelector('#ai-send')?.addEventListener('click', sendMessage);
 
-    root.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', () => {
-        renderPage(item.dataset.page);
-        closeMobileSidebar();
-      });
-    });
-
     overlay?.addEventListener('click', closeMobileSidebar);
+
+    root.addEventListener('click', (event) => {
+      const target = event.target?.closest?.('button, .nav-item');
+      if (!target || !root.contains(target)) return;
+      if (target.id === 'sidebar-toggle') {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleSidebar();
+        return;
+      }
+      if (target.id === 'desktop-ai-button' || target.id === 'mobile-ai-button') {
+        event.preventDefault();
+        setAI(true);
+        return;
+      }
+      if (target.id === 'ai-close' || target.id === 'ai-hide') {
+        event.preventDefault();
+        setAI(false);
+        return;
+      }
+      if (target.classList.contains('nav-item')) {
+        renderPage(target.dataset.page);
+        closeMobileSidebar();
+      }
+    });
 
     root.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
