@@ -82,13 +82,14 @@ export default function(component) {
   function setAI(open) {
     state.aiOpen = open;
     root.classList.toggle('ai-open', open);
+    root.classList.toggle('ai-viewport-mode', open);
     const panel = root.querySelector('.ai-panel');
     if (panel) panel.setAttribute('aria-hidden', String(!open));
     if (open) setTimeout(() => root.querySelector('#ai-input')?.focus(), 50);
   }
 
   function toggleSidebar() {
-    if (window.innerWidth <= 800) {
+    if (root.clientWidth <= 800) {
       state.mobileSidebarOpen = !state.mobileSidebarOpen;
       root.classList.toggle('mobile-sidebar-open', state.mobileSidebarOpen);
       return;
@@ -130,6 +131,7 @@ export default function(component) {
         return;
       }
       if (event.target.closest('#sidebar-toggle')) { toggleSidebar(); return; }
+      if (event.target.closest('#desktop-menu-button')) { toggleSidebar(); return; }
       if (event.target.closest('#mobile-menu-button')) { toggleSidebar(); return; }
       if (event.target.closest('#desktop-ai-button')) { setAI(true); return; }
       if (event.target.closest('#mobile-ai-button')) { setAI(true); return; }
