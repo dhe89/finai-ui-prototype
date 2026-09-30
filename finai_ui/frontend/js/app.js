@@ -13,7 +13,6 @@ export default function(component) {
   const history = Array.isArray(data?.chat_history) ? data.chat_history : [];
   const responseVersion = data?.response_version || 0;
 
-  // Render static layout once. Never create another component/iframe here.
   if (!sidebarSlot.dataset.ready) {
     sidebarSlot.innerHTML = data?.sidebar_html || '';
     headerSlot.innerHTML = data?.header_html || '';
@@ -27,13 +26,18 @@ export default function(component) {
     mobileSidebarOpen: false,
     aiOpen: false,
     lastResponseVersion: -1,
-    handlersBound: false,
+    boundRoot: null,
+    resizeObserver: null,
   });
 
+  function isMobile() {
+    return root.clientWidth <= 800;
+  }
+
   function applyResponsiveMode() {
-    const isMobile = root.clientWidth <= 800;
-    root.classList.toggle('is-mobile', isMobile);
-    if (!isMobile) {
+    const mobile = isMobile();
+    root.classList.toggle('is-mobile', mobile);
+    if (!mobile) {
       state.mobileSidebarOpen = false;
       root.classList.remove('mobile-sidebar-open');
     }
@@ -43,6 +47,11 @@ export default function(component) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
     }[ch]));
+  }
+
+  function formatText(text) {
+    return esc(text).replace(/
+/g, '<br>');
   }
 
   function renderPage(page) {
@@ -57,39 +66,26 @@ export default function(component) {
   function renderHistory() {
     const body = root.querySelector('#ai-body');
     if (!body) return;
-    let html = `
-      <div class="msg">
-        <div class="bot">✦</div>
-        <div class="msgtext"><b>Hi there! 👋</b><br><span class="muted">I'm your Financial AI Assistant.<br>Ask me about the dashboard.</span></div>
-      </div>`;
-
+    let html = `<div class="msg"><div class="bot">✦</div><div class="msgtext"><b>Hi there! 👋</b><br><span class="muted">I'm your Financial AI Assistant.<br>Ask me about the dashboard.</span></div></div>`;
     for (const item of history) {
-      if (item.role === 'user') {
-        html += `<div class="msg user"><div class="bubble">${esc(item.content)}</div></div>`;
-      } else if (item.role === 'assistant') {
-        html += `<div class="msg"><div class="bot">✦</div><div class="msgtext">${formatText(item.content)}</div></div>`;
-      }
+      if (item.role === 'user') html += `<div class="msg user"><div class="bubble">${esc(item.content)}</div></div>`;
+      else if (item.role === 'assistant') html += `<div class="msg"><div class="bot">✦</div><div class="msgtext">${formatText(item.content)}</div></div>`;
     }
     body.innerHTML = html;
     body.scrollTop = body.scrollHeight;
   }
 
-  function formatText(text) {
-    // Safe, lightweight formatting for the prototype. No innerHTML from user text.
-    return esc(text).replace(/\n/g, '<br>');
-  }
-
   function setAI(open) {
-    state.aiOpen = open;
-    root.classList.toggle('ai-open', open);
-    root.classList.toggle('ai-viewport-mode', open);
+    state.aiOpen = !!open;
+    root.classList.toggle('ai-open', state.aiOpen);
+    root.classList.toggle('ai-viewport-mode', state.aiOpen);
     const panel = root.querySelector('.ai-panel');
-    if (panel) panel.setAttribute('aria-hidden', String(!open));
-    if (open) setTimeout(() => root.querySelector('#ai-input')?.focus(), 50);
+    if (panel) panel.setAttribute('aria-hidden', String(!state.aiOpen));
+    if (state.aiOpen) setTimeout(() => root.querySelector('#ai-input')?.focus(), 80);
   }
 
   function toggleSidebar() {
-    if (root.clientWidth <= 800) {
+    if (isMobile()) {
       state.mobileSidebarOpen = !state.mobileSidebarOpen;
       root.classList.toggle('mobile-sidebar-open', state.mobileSidebarOpen);
       return;
@@ -111,32 +107,36 @@ export default function(component) {
     input.disabled = true;
     const send = root.querySelector('#ai-send');
     if (send) send.disabled = true;
-
-    // One event -> one Streamlit rerun -> Python updates chat_history.
-    setTriggerValue('chat_submit', {
-      message: text,
-      page: state.page,
-      ts: Date.now(),
-    });
+    setTriggerValue('chat_submit', { message: text, page: state.page, ts: Date.now() });
   }
 
-  if (!state.handlersBound) {
-    state.handlersBound = true;
+  function bindHandlers() {
+    if (state.boundRoot === root) return;
+    state.boundRoot = root;
 
-    root.addEventListener('click', (event) => {
-      const nav = event.target.closest('.nav-item');
-      if (nav) {
-        renderPage(nav.dataset.page);
-        closeMobileSidebar();
-        return;
-      }
-      if (event.target.closest('#sidebar-toggle')) { toggleSidebar(); return; }
-      if (event.target.closest('#desktop-ai-button')) { setAI(true); return; }
-      if (event.target.closest('#mobile-ai-button')) { setAI(true); return; }
-      if (event.target.closest('#ai-close')) { setAI(false); return; }
-      if (event.target.closest('#ai-send')) { sendMessage(); return; }
-      if (event.target === overlay) { closeMobileSidebar(); }
+    // Direct button handlers avoid lost delegation when Streamlit remounts the component.
+    root.querySelector('#sidebar-toggle')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSidebar();
     });
+    root.querySelector('#desktop-ai-button')?.addEventListener('click', () => setAI(true));
+    root.querySelector('#mobile-ai-button')?.addEventListener('click', () => setAI(true));
+    root.querySelector('#ai-close')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setAI(false);
+    });
+    root.querySelector('#ai-send')?.addEventListener('click', sendMessage);
+
+    root.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        renderPage(item.dataset.page);
+        closeMobileSidebar();
+      });
+    });
+
+    overlay?.addEventListener('click', closeMobileSidebar);
 
     root.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
@@ -149,12 +149,13 @@ export default function(component) {
       }
     });
 
-    const resizeObserver = new ResizeObserver(() => applyResponsiveMode());
-    resizeObserver.observe(root);
-    state.resizeObserver = resizeObserver;
+    state.resizeObserver?.disconnect();
+    state.resizeObserver = new ResizeObserver(applyResponsiveMode);
+    state.resizeObserver.observe(root);
   }
 
-  // If Python reran, keep the same component instance and only refresh data-driven content.
+  bindHandlers();
+
   if (state.lastResponseVersion !== responseVersion) {
     state.lastResponseVersion = responseVersion;
     renderHistory();
